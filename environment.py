@@ -1,26 +1,9 @@
 import math
-import numpy as np
+from a_star import A_star
+from path_execution import PathExecution
 
-class Node:
-    def __init__(self, x, y, a = 0):
-        self.x = x
-        self.y = y
-        self.a = a
-
-    def __lt__(self, other):
-        # Less than (<) comparison, could be based on heuristic, cost, etc.
-        return (self.x, self.y, self.a) < (other.x, other.y, other.a)
-
-    def __eq__(self, other):
-        if not isinstance(other, type(self)): return NotImplemented
-        return (self.x == other.x) and (self.y == other.y) and (self.a == other.a)
-
-    def __hash__(self):
-        return hash((self.x, self.y, self.a))
-
-def distance(point1: Node, point2: Node) -> float:
+def distance(point1, point2) -> float:
     return math.sqrt((point1.x - point2.x)**2 + (point1.y - point2.y)**2)
-
 
 class Robot:
     def __init__(self,
@@ -29,7 +12,6 @@ class Robot:
             linear_speed = 0.2, # m/s
             angular_speed = math.pi / 6, # rad/s
             obstacle_clearence = 3, # cm
-            viewing_distance = 20 # cm
         ):
 
         self.radius = radius
@@ -37,8 +19,6 @@ class Robot:
         self.angular_speed = angular_speed
         self.obstacle_clearence = obstacle_clearence
 
-        # Should be removed in the final version
-        # coordinate system will always have the robot at (0, 0, 0)
         self.x = x
         self.y = y
         self.a = a
@@ -54,36 +34,69 @@ class Obstacle:
         self.x = x 
         self.y = y 
         self.radius = radius 
-
+            
 class Environment:
     def __init__(self, robot, checkpoints, obstacles):
         self.robot: Robot = robot
-        self.checkpoints: List[Checkpoint] = checkpoints
-        self.obstacles: Set[Obstacle] = obstacles
-        for obstacle in list(self.obstacles):  # Create a copy of the set for iteration
+        self.checkpoints: list[Checkpoint] = checkpoints
+        self.obstacles: set[Obstacle] = obstacles
+        
+        self.current_goal_checkpoint_index = 0
+        self.path = []
+        
+        self.path_execution = PathExecution(self)
+        
+        for obstacle in self.obstacles:
             if distance(obstacle, robot) < (robot.radius 
                                             + obstacle.radius
                                             + robot.obstacle_clearence):
-                self.obstacles.remove(obstacle)
+                print("Obstacle is already too close to the robot")
 
 
-    def simulate_movement(self, move, time, odometry):
-        """
+    def reconstruct_path(self, came_from, goal):
+        current = goal
+        path = []
+        while current is not None:
+            path.append(current)
+            current = came_from[current]
+        path.reverse()
+        return path
 
-        Args:
-            move (tuple[int, int]): values of linear and angular velocities m/s, rad/s
-            time (float): time to move
-        """
+    def get_current_move(self):
+        if not self.path:
+            # Still have checkpoints to go through
+            if self.current_goal_checkpoint_index < len(self.checkpoints):                
+                goal = self.checkpoints[self.current_goal_checkpoint_index]
+                if self.straight_path_exists(self.robot, goal):
+                    print("Found straight path")
+                    self.path = [goal]
+                    self.path_execution.update()
+                else:
+                    print("Looking for path with A*")
+                    a_star = A_star(self)
+                    came_from, cost_so_far = a_star.search(goal)
+                    if goal in came_from:
+                        self.path = self.reconstruct_path(came_from, goal)
+                        self.path = self.simplify_path(self.path)
+                        self.path.pop(0) # receiving the path with robot at start 
+                        self.path_execution.update()
+                        print("Path found using A*")
+                    else:
+                        print("Couldn't find path with A*")
+                        return (0, 0)
+            # Finished executing current checkpoints (looking for other ones)
+            else:
+                return (0, 0)
+        # Here the path is guaranteed to be non-empty
+        return self.path_execution.move_through_path()
+
+    def simulate_movement(self, move, time):
         changes = (math.cos(math.radians(self.robot.a)) * move[0] * time,
                     math.sin(math.radians(self.robot.a)) * move[0] * time,
                     move[1] * time)
         self.robot.x += changes[0] * 100
         self.robot.y += changes[1] * 100
-        self.robot.a += math.degrees(changes[2])
-        new_odometry = (odometry[0] + changes[0],
-                        odometry[1] + changes[1],
-                        odometry[2] + changes[2])
-        return new_odometry
+        self.robot.a += (math.degrees(changes[2]) + 180) % 360 - 180
     
     def set_obstacles_from_checkpoints(self):
         for check in self.checkpoints:            
@@ -108,14 +121,28 @@ class Environment:
             self.obstacles.add(Obstacle(right_x, right_y))
         return
 
-    def in_collision(self, node: Node) -> bool:
+    def in_collision(self, node) -> bool:
         for obstacle in self.obstacles:
             allowed_distance = obstacle.radius + self.robot.radius + self.robot.obstacle_clearence
             if distance(node, obstacle) < allowed_distance:
                 return True
         return False
 
-
+    def simplify_path(self, path):
+        simplified_path = [path[0]]  # Start with the first point
+        i = 0
+        while i < len(path) - 1:
+            j = len(path) - 1
+            while j > i + 1:
+                if self.straight_path_exists(path[i], path[j]):
+                    # Found a direct line to a further point
+                    i = j
+                    break
+                j -= 1
+            simplified_path.append(path[i])
+            i += 1
+        return simplified_path
+    
     def straight_path_exists(self, start, goal) -> bool:
         # print("Looking for straight path...")
         if start.x == goal.x and start.y == goal.y:
@@ -155,17 +182,3 @@ class Environment:
         # No collisions detected
         return True
 
-    def simplify_path(self, path):
-        simplified_path = [path[0]]  # Start with the first point
-        i = 0
-        while i < len(path) - 1:
-            j = len(path) - 1
-            while j > i + 1:
-                if self.straight_path_exists(path[i], path[j]):
-                    # Found a direct line to a further point
-                    i = j
-                    break
-                j -= 1
-            simplified_path.append(path[i])
-            i += 1
-        return simplified_path

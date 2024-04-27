@@ -1,5 +1,5 @@
 from typing import TypeVar, List, Tuple, Dict, Optional
-from environment import Node
+# from environment import Node
 import math
 import heapq
 
@@ -17,6 +17,24 @@ class PriorityQueue:
 
     def get(self) -> T:
         return heapq.heappop(self.elements)[1]
+
+class Node:
+    def __init__(self, x, y, a = 0):
+        self.x = x
+        self.y = y
+        self.a = a
+
+    def __lt__(self, other):
+        # Less than (<) comparison, could be based on heuristic, cost, etc.
+        return (self.x, self.y, self.a) < (other.x, other.y, other.a)
+
+    def __eq__(self, other):
+        if not isinstance(other, type(self)): return NotImplemented
+        return (self.x == other.x) and (self.y == other.y) and (self.a == other.a)
+
+    def __hash__(self):
+        return hash((self.x, self.y, self.a))
+
 
 class A_star:
     def __init__(self, env):
@@ -41,9 +59,10 @@ class A_star:
         return result
 
 
-    def search(self, goal: Node) -> Tuple[Dict[Node, Optional[Node]], Dict[Node, float]]:
+    def search(self, goal) -> Tuple[Dict[Node, Optional[Node]], Dict[Node, float]]:
         frontier = PriorityQueue()
-        start = Node(self.env.robot.x, self.env.robot.y)
+        # start = Node(self.env.robot.x, self.env.robot.y)
+        start = self.env.robot
         frontier.put(start, 0)
         came_from: Dict[Node, Optional[Node]] = {start: None}
         cost_so_far: Dict[Node, float] = {start: 0}

@@ -1,7 +1,7 @@
 import pygame
 import pygame.gfxdraw
 import math
-from environment import Node
+# from environment import Node
 import numpy as np
 import cv2
 
@@ -82,27 +82,33 @@ class RobotVisualization:
         path_color = (0, 100, 200)  # Dark blue color for the path
         line_width = 5
 
+        # Insert the robot's current position as the first node in the path
+        full_path = [self.env.robot] + path
+
         # Draw lines between nodes and store the updated areas
-        for i in range(len(path) - 1):
-            start_node = path[i]
-            end_node = path[i + 1]
-            start_pos = self.get_coordinates_in_pixels(start_node)
-            end_pos = self.get_coordinates_in_pixels(end_node)
+        for i in range(len(full_path) - 1):
+            start_node = full_path[i]
+            end_node = full_path[i + 1]
+            start_pos = self.get_coordinates_in_pixels(start_node.x, start_node.y)
+            end_pos = self.get_coordinates_in_pixels(end_node.x, end_node.y)
             pygame.draw.line(self.screen, path_color, start_pos, end_pos, line_width)
 
             # Calculate the smallest rectangle that covers the line
-            line_rect = pygame.draw.line(self.screen, path_color, start_pos, end_pos, line_width)
+            line_rect = pygame.Rect(min(start_pos[0], end_pos[0]), min(start_pos[1], end_pos[1]),
+                                    abs(start_pos[0] - end_pos[0]), abs(start_pos[1] - end_pos[1]))
+            line_rect.inflate_ip(line_width, line_width)  # Inflate to cover the whole line width
             updated_rects.append(line_rect)
 
         # Draw nodes and store the updated areas
         node_radius_pixels = self.get_length_in_pixels(1)
-        for node in path:
-            node_pos = self.get_coordinates_in_pixels(node)
+        for node in full_path:
+            node_pos = self.get_coordinates_in_pixels(node.x, node.y)
             pygame.gfxdraw.aacircle(self.screen, node_pos[0], node_pos[1], node_radius_pixels, path_color)
             pygame.gfxdraw.filled_circle(self.screen, node_pos[0], node_pos[1], node_radius_pixels, path_color)
 
             # Calculate the rectangle that covers the node
-            node_rect = pygame.Rect(node_pos[0] - node_radius_pixels, node_pos[1] - node_radius_pixels, 2 * node_radius_pixels, 2 * node_radius_pixels)
+            node_rect = pygame.Rect(node_pos[0] - node_radius_pixels, node_pos[1] - node_radius_pixels,
+                                    2 * node_radius_pixels, 2 * node_radius_pixels)
             updated_rects.append(node_rect)
 
         return updated_rects  # Return the list of updated rectangles
@@ -110,32 +116,32 @@ class RobotVisualization:
     def draw_robot(self, robot):
         self.draw_arrow(robot, (50, 220, 50))
         pygame.gfxdraw.aacircle(self.screen,
-                                *self.get_coordinates_in_pixels(robot),
+                                *self.get_coordinates_in_pixels(robot.x, robot.y),
                                 self.get_length_in_pixels(robot.radius),
                                 (0, 255, 0))
 
     def draw_obstacle(self, obstacle):
         pygame.gfxdraw.aacircle(self.screen,
-                                *self.get_coordinates_in_pixels(obstacle),
+                                *self.get_coordinates_in_pixels(obstacle.x, obstacle.y),
                                 self.get_length_in_pixels(obstacle.radius),
                                 (255, 0, 0))
         pygame.gfxdraw.filled_circle(self.screen,
-                                     *self.get_coordinates_in_pixels(obstacle),
+                                     *self.get_coordinates_in_pixels(obstacle.x, obstacle.y),
                                      self.get_length_in_pixels(obstacle.radius), 
                                      (255, 0, 0))
 
     def draw_checkpoint(self, checkpoint):
         self.draw_arrow(checkpoint, (220, 50, 50))
         pygame.gfxdraw.aacircle(self.screen,
-                                *self.get_coordinates_in_pixels(checkpoint),
+                                *self.get_coordinates_in_pixels(checkpoint.x, checkpoint.y),
                                 self.get_length_in_pixels(1.5), (0, 0, 255))
         pygame.gfxdraw.filled_circle(self.screen,
-                                     *self.get_coordinates_in_pixels(checkpoint),
+                                     *self.get_coordinates_in_pixels(checkpoint.x, checkpoint.y),
                                      self.get_length_in_pixels(1.5), (0, 0, 255))
     def draw_arrow(self, node, color):
         arrow_size = self.get_length_in_pixels(10)  # cm
         
-        x, y = self.get_coordinates_in_pixels(node)
+        x, y = self.get_coordinates_in_pixels(node.x, node.y)
         end_line_x = x + arrow_size * 0.9 * math.cos(math.radians(node.a))  # Shorten the line slightly
         end_line_y = y - arrow_size * 0.9 * math.sin(math.radians(node.a))
 
@@ -160,10 +166,10 @@ class RobotVisualization:
                                                 (int(left_end_x), int(left_end_y)), 
                                                 (int(right_end_x), int(right_end_y))])
 
-    def get_coordinates_in_pixels(self, node):
-        result_x = int((self.base_size[0]*(node.x - self.min_coordinate))
+    def get_coordinates_in_pixels(self, x, y):
+        result_x = int((self.base_size[0]*(x - self.min_coordinate))
                        /(self.max_coordinate-self.min_coordinate))
-        result_y = int((self.base_size[1]*(self.max_coordinate - node.y))
+        result_y = int((self.base_size[1]*(self.max_coordinate - y))
                        /(self.max_coordinate-self.min_coordinate))
         return result_x, result_y
 
@@ -235,8 +241,8 @@ class RobotVisualization:
 
     def draw_grid_line_with_number(self, x1, y1, x2, y2, color, font, vertical, surface):
         # Convert coordinates
-        start_pos = self.get_coordinates_in_pixels(Node(x1, y1))
-        end_pos = self.get_coordinates_in_pixels(Node(x2, y2))
+        start_pos = self.get_coordinates_in_pixels(x1, y1)
+        end_pos = self.get_coordinates_in_pixels(x2, y2)
         
         # Draw the line
         pygame.draw.line(surface, color, start_pos, end_pos)
@@ -248,10 +254,10 @@ class RobotVisualization:
         # Determine text position
         if vertical:
             text_x = start_pos[0] - text_surface.get_width() / 2
-            text_y = self.get_coordinates_in_pixels(Node(0, 0))[1] + 20 # TODO: Optimize
+            text_y = self.get_coordinates_in_pixels(0, 0)[1] + 20 # TODO: Optimize
             text_x = max(text_x, 0)
         else:
-            text_x = self.get_coordinates_in_pixels(Node(0, 0))[0] - text_surface.get_width() - 20
+            text_x = self.get_coordinates_in_pixels(0, 0)[0] - text_surface.get_width() - 20
             text_y = start_pos[1] - text_surface.get_height() / 2
             text_y = min(text_y, surface.get_height() - text_surface.get_height())
 
