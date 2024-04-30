@@ -1,19 +1,13 @@
 import pygame
 import pygame.gfxdraw
-import math
-# from environment import Node
 import numpy as np
 import cv2
 
-
 class RobotVisualization:
-    def __init__(self, env, screen_size, window_percentage = 0.8, margin = 30):
+    def __init__(self, env, screen_size, window_percentage = 0.8, margin = 1):
         self.env = env
         self.margin = margin
         
-        minimal_dimension = int(min(screen_size)*window_percentage)
-        self.screen_size = (minimal_dimension, minimal_dimension)
-        # self.screen_size = (screen_size[0]*window_percentage, screen_size[1]*window_percentage)
         
         pygame.init()
         # self.base_size = (3840, 3840) # 4K square
@@ -21,6 +15,9 @@ class RobotVisualization:
         self.screen = pygame.display.set_mode(self.base_size)
         self.clock = pygame.time.Clock()
 
+        minimal_dimension = int(min(screen_size)*window_percentage)
+        self.screen_size = (minimal_dimension, minimal_dimension)
+        
         self.scale_width = self.screen_size[0] / self.base_size[0]
         self.scale_height = self.screen_size[1] / self.base_size[1]
 
@@ -29,8 +26,9 @@ class RobotVisualization:
         x_y_offset = int((min(screen_size) - minimal_dimension) / 4)
         cv2.moveWindow(self.window_name, x_y_offset, x_y_offset - 20)
         
-        self.max_coordinate = 0
-        self.min_coordinate = 0
+        self.center_x = 0
+        self.center_y = 0
+        self.range = 0
         self.find_limits()
         
         self.grid_surface = None
@@ -45,28 +43,22 @@ class RobotVisualization:
         image = np.frombuffer(raw_str, dtype=np.uint8).reshape(self.base_size[1], self.base_size[0], 3)
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         image = cv2.resize(image, None, fx = self.scale_width,
-                           fy = self.scale_height, interpolation=cv2.INTER_AREA)
+                           fy = self.scale_height, interpolation = cv2.INTER_AREA)
         return image
-
-    def create_button(self, text, position, action):
-        """Create a button in the Pygame window."""
-        font = pygame.font.Font(None, 36)
-        text_render = font.render(text, True, (0, 0, 0))
-        text_rect = text_render.get_rect(center=position)
-        button_rect = text_render.get_rect()  # Create a rect for button
-        button_rect.center = position
-        pygame.draw.rect(self.screen, (200, 200, 200), button_rect)  # Draw the button
-        self.screen.blit(text_render, text_rect)
-
-        return button_rect, action
 
     def draw_everything(self):
         # self.draw_grid()
+        self.find_limits()
+        self.initialize_grid()
         if self.grid_surface:
             self.screen.blit(self.grid_surface, (0, 0))
 
+        for hidden_obstacle in self.env.hidden_obstacles:
+            self.draw_obstacle(hidden_obstacle, True)
+            
         for obstacle in self.env.obstacles:
             self.draw_obstacle(obstacle)
+
 
         for checkpoint in self.env.checkpoints:
             self.draw_checkpoint(checkpoint)
@@ -100,7 +92,7 @@ class RobotVisualization:
             updated_rects.append(line_rect)
 
         # Draw nodes and store the updated areas
-        node_radius_pixels = self.get_length_in_pixels(1)
+        node_radius_pixels = self.get_length_in_pixels(0.01)
         for node in full_path:
             node_pos = self.get_coordinates_in_pixels(node.x, node.y)
             pygame.gfxdraw.aacircle(self.screen, node_pos[0], node_pos[1], node_radius_pixels, path_color)
@@ -113,48 +105,130 @@ class RobotVisualization:
 
         return updated_rects  # Return the list of updated rectangles
 
-    def draw_robot(self, robot):
-        self.draw_arrow(robot, (50, 220, 50))
-        pygame.gfxdraw.aacircle(self.screen,
-                                *self.get_coordinates_in_pixels(robot.x, robot.y),
-                                self.get_length_in_pixels(robot.radius),
-                                (0, 255, 0))
 
-    def draw_obstacle(self, obstacle):
-        pygame.gfxdraw.aacircle(self.screen,
-                                *self.get_coordinates_in_pixels(obstacle.x, obstacle.y),
-                                self.get_length_in_pixels(obstacle.radius),
-                                (255, 0, 0))
-        pygame.gfxdraw.filled_circle(self.screen,
-                                     *self.get_coordinates_in_pixels(obstacle.x, obstacle.y),
-                                     self.get_length_in_pixels(obstacle.radius), 
-                                     (255, 0, 0))
+    def draw_ellipse_from_covariance(self, center, covariance,n_std):
+        """
+        Draw an ellipse from a covariance matrix on the given Pygame screen using pygame.gfxdraw for anti-aliasing.
+        """
+        color = (255, 0, 0)
+        pos_covariance = covariance[:2, :2]  # Extract the 2x2 covariance matrix for position
+
+        # Calculate the eigenvalues and eigenvectors (for ellipse orientation and size)
+        eigvals, eigvecs = np.linalg.eig(pos_covariance)
+        axis_lengths = 2 * n_std * np.sqrt(eigvals)
+        width, height = axis_lengths[0], axis_lengths[1]
+
+        # Convert eigenvalues to pixels assuming get_length_in_pixels converts correctly
+        width_pixels, height_pixels = self.get_length_in_pixels(width) / 10, self.get_length_in_pixels(height) / 10
+        
+        # Angle to rotate ellipse (convert eigenvector angle to degrees)
+        angle = np.arctan2(eigvecs[1, 0], eigvecs[0, 0])
+        angle_degrees = np.degrees(angle)
+        
+        # Create a new surface to draw the unrotated ellipse
+        ellipse_surface = pygame.Surface((int(width_pixels * 2), int(height_pixels * 2)), pygame.SRCALPHA)
+        ellipse_center = (int(width_pixels), int(height_pixels))
+        
+        # Draw anti-aliased ellipse
+        pygame.gfxdraw.aaellipse(ellipse_surface, ellipse_center[0], ellipse_center[1], int(width_pixels), int(height_pixels), color)
+
+
+        # Rotate the surface
+        rotated_surface = pygame.transform.rotate(ellipse_surface, -angle_degrees)  # Negative for correct rotation direction
+        new_rect = rotated_surface.get_rect(center=center)  # Get new rect for blitting
+        
+        # Blit the rotated surface onto the main screen
+        self.screen.blit(rotated_surface, new_rect)
+        
+    def draw_robot(self, robot):
+        # Existing code to draw the robot
+        self.draw_arrow(robot, (50, 220, 50))
+        robot_center = self.get_coordinates_in_pixels(robot.x, robot.y)
+        robot_radius_pixels = self.get_length_in_pixels(robot.radius)
+        pygame.gfxdraw.aacircle(self.screen, robot_center[0], robot_center[1], robot_radius_pixels, (0, 255, 0))
+        self.draw_ellipse_from_covariance(robot_center,
+                                          self.env.kalman_filter.sigma,
+                                          n_std = 2)
+
+        # Calculate FOV visualization
+        fov_radius_pixels = self.get_length_in_pixels(robot.max_detection_range)
+        half_fov = robot.fov_angle / 2
+        # Calculate start and end angles in radians
+        start_angle_rad = robot.a - half_fov
+        end_angle_rad = robot.a + half_fov
+
+        # Calculate points on the circumference of the FOV arc
+        start_point = (
+            int(robot_center[0] + fov_radius_pixels * np.cos(start_angle_rad)),
+            int(robot_center[1] - fov_radius_pixels * np.sin(start_angle_rad))
+        )
+        end_point = (
+            int(robot_center[0] + fov_radius_pixels * np.cos(end_angle_rad)),
+            int(robot_center[1] - fov_radius_pixels * np.sin(end_angle_rad))
+        )
+
+        # Draw the FOV arc
+        rect = pygame.Rect(robot_center[0] - fov_radius_pixels, robot_center[1] - fov_radius_pixels,
+                        2 * fov_radius_pixels, 2 * fov_radius_pixels)
+        pygame.draw.arc(self.screen, (100, 220, 100), rect, start_angle_rad, end_angle_rad, 1)
+
+        # Optional: Draw lines to denote the edges of the FOV
+        pygame.draw.line(self.screen, (100, 220, 100), robot_center, start_point, 1)
+        pygame.draw.line(self.screen, (100, 220, 100), robot_center, end_point, 1)
+
+
+    def draw_obstacle(self, obstacle, hidden=False):
+        color = [255, 255, 255]
+
+        if obstacle.color == "red":
+            color = [255, 0, 0]
+        elif obstacle.color == "blue":
+            color = [0, 0, 255]
+        elif obstacle.color == "green":
+            color = [0, 255, 0]
+
+        if hidden:
+            color = [max(0, c - 155) for c in color]  # Subtract 100 safely, ensuring no negative values
+
+        color = tuple(color)  # Convert back to tuple if needed for drawing functions
+        obstacle_pos = self.get_coordinates_in_pixels(obstacle.x, obstacle.y)
+        obstacle_radius_pixels = self.get_length_in_pixels(obstacle.radius)
+
+        pygame.gfxdraw.aacircle(self.screen, obstacle_pos[0], obstacle_pos[1], obstacle_radius_pixels, color)
+        pygame.gfxdraw.filled_circle(self.screen, obstacle_pos[0], obstacle_pos[1], obstacle_radius_pixels, color)
+
+        # Draw uncertainty ellipse if not hidden
+        if not hidden and obstacle.index is not None:
+            idx = 3 + 2 * obstacle.index
+            covariance = self.env.kalman_filter.sigma[idx:idx+2, idx:idx+2]
+            self.draw_ellipse_from_covariance(obstacle_pos, covariance, 2)
 
     def draw_checkpoint(self, checkpoint):
         self.draw_arrow(checkpoint, (220, 50, 50))
         pygame.gfxdraw.aacircle(self.screen,
                                 *self.get_coordinates_in_pixels(checkpoint.x, checkpoint.y),
-                                self.get_length_in_pixels(1.5), (0, 0, 255))
+                                self.get_length_in_pixels(0.015), (0, 0, 255))
         pygame.gfxdraw.filled_circle(self.screen,
                                      *self.get_coordinates_in_pixels(checkpoint.x, checkpoint.y),
-                                     self.get_length_in_pixels(1.5), (0, 0, 255))
+                                     self.get_length_in_pixels(0.015), (0, 0, 255))
+        
     def draw_arrow(self, node, color):
-        arrow_size = self.get_length_in_pixels(10)  # cm
+        arrow_size = self.get_length_in_pixels(0.1)  # cm
         
         x, y = self.get_coordinates_in_pixels(node.x, node.y)
-        end_line_x = x + arrow_size * 0.9 * math.cos(math.radians(node.a))  # Shorten the line slightly
-        end_line_y = y - arrow_size * 0.9 * math.sin(math.radians(node.a))
+        end_line_x = x + arrow_size * 0.9 * np.cos(node.a)  # Shorten the line slightly
+        end_line_y = y - arrow_size * 0.9 * np.sin(node.a)
 
-        end_arrow_x = x + arrow_size * math.cos(math.radians(node.a))
-        end_arrow_y = y - arrow_size * math.sin(math.radians(node.a))
-        pygame.draw.line(self.screen, color, (x, y), (int(end_line_x), int(end_line_y)), self.get_length_in_pixels(0.5))
+        end_arrow_x = x + arrow_size * np.cos(node.a)
+        end_arrow_y = y - arrow_size * np.sin(node.a)
+        pygame.draw.line(self.screen, color, (x, y), (int(end_line_x), int(end_line_y)), self.get_length_in_pixels(0.005))
         
         # Draw arrowhead
         arrowhead_size = arrow_size // 4  # Increase arrowhead size for better visibility
-        left_dx = arrowhead_size * math.cos(math.radians(node.a - 150))  # Sharper angle for the arrowhead
-        left_dy = arrowhead_size * math.sin(math.radians(node.a - 150))
-        right_dx = arrowhead_size * math.cos(math.radians(node.a + 150))  # Sharper angle
-        right_dy = arrowhead_size * math.sin(math.radians(node.a + 150))
+        left_dx = arrowhead_size * np.cos(node.a - np.deg2rad(150))  # Sharper angle for the arrowhead
+        left_dy = arrowhead_size * np.sin(node.a - np.deg2rad(150))
+        right_dx = arrowhead_size * np.cos(node.a + np.deg2rad(150))  # Sharper angle
+        right_dy = arrowhead_size * np.sin(node.a + np.deg2rad(150))
         
         left_end_x = end_arrow_x + left_dx
         left_end_y = end_arrow_y - left_dy
@@ -167,78 +241,92 @@ class RobotVisualization:
                                                 (int(right_end_x), int(right_end_y))])
 
     def get_coordinates_in_pixels(self, x, y):
-        result_x = int((self.base_size[0]*(x - self.min_coordinate))
-                       /(self.max_coordinate-self.min_coordinate))
-        result_y = int((self.base_size[1]*(self.max_coordinate - y))
-                       /(self.max_coordinate-self.min_coordinate))
+        result_x = int(self.base_size[0] * (x - self.center_x + self.range/2) / self.range)
+        result_y = int(self.base_size[1] * (-y + self.center_y + self.range/2) / self.range)
         return result_x, result_y
 
     def get_length_in_pixels(self, length):
-        return int(self.base_size[0]*(length / abs(self.max_coordinate - self.min_coordinate)))
-
+        return int(self.base_size[0]*(length / self.range))
 
     def find_limits(self):
-        # Collects all x and y coordinates from robots, checkpoints, and obstacles
+        # Collect all x and y coordinates from robots, checkpoints, and obstacles
         all_x = [self.env.robot.x] + \
-        [cp.x for cp in self.env.checkpoints] + \
-        [ob.x for ob in self.env.obstacles]
-
+            [ob.x for ob in self.env.obstacles] + \
+            [cp.x for cp in self.env.checkpoints] + \
+            [node.x for node in self.env.path]
+            
         all_y = [self.env.robot.y] + \
-        [cp.y for cp in self.env.checkpoints] + \
-        [ob.y for ob in self.env.obstacles]
-
-        min_x, max_x = min(all_x) - self.margin, max(all_x) + self.margin
-        min_y, max_y = min(all_y) - self.margin, max(all_y) + self.margin
-
-        # self.min_x = self.min_y = min(self.min_x, self.min_y)
-        # self.max_x = self.max_y = max(self.max_x, self.max_y)
-        self.min_coordinate = min(min_x, min_y)
-        self.max_coordinate = max(max_x, max_y)
-        # print(self.max_coordinate, self.min_coordinate)
+            [ob.y for ob in self.env.obstacles] + \
+            [cp.y for cp in self.env.checkpoints] + \
+            [node.y for node in self.env.path]
+            
+        min_x, max_x = min(all_x), max(all_x)
+        min_y, max_y = min(all_y), max(all_y)
+        # Find the largest range to ensure a square aspect ratio
+        range_x = max_x - min_x
+        range_y = max_y - min_y
+        self.range = max(range_x, range_y) + self.margin
+        self.range = max(2, self.range)
+        # Calculate new min and max for both x and y to be centered
+        self.center_x = (max_x + min_x) / 2
+        self.center_y = (max_y + min_y) / 2
 
     def initialize_grid(self):
         self.grid_surface = pygame.Surface(self.screen.get_size())
         # self.grid_surface.fill((255, 255, 255))  # Fill background, adjust color as needed
 
-        grid_color = (200, 200, 200)  # Light grey
-        spacing = 25  # cm for now
-        font = pygame.font.Font(None, int(self.screen_size[0]*0.04))
+        grid_color = (150, 150, 150)  # Light grey
+        spacing = 0.25  # cm for now
+        max_x = self.center_x + self.range/2
+        min_x = self.center_x - self.range/2
+        max_y = self.center_y + self.range/2
+        min_y = self.center_y - self.range/2
+        font = pygame.font.Font(None, int(self.base_size[0]*0.02))
 
         # Draw vertical lines
-        x = 0
-        while x < self.max_coordinate:
-            self.draw_grid_line_with_number(x, self.min_coordinate,
-                                            x, self.max_coordinate,
+        x = int(min_x - (min_x % spacing))
+        while x < max_x:
+            self.draw_grid_line_with_number(x, min_y,
+                                            x, max_y,
                                             grid_color, font, True,
                                             self.grid_surface)
             x += spacing
 
-        x = -spacing
-        while x > self.min_coordinate:
-            self.draw_grid_line_with_number(x, self.min_coordinate,
-                                            x, self.max_coordinate,
-                                            grid_color, font, True,
-                                            self.grid_surface)
-            x -= spacing
-
         # Draw horizontal lines
-        y = 0
-        while y < self.max_coordinate:
-            self.draw_grid_line_with_number(self.min_coordinate, y,
-                                            self.max_coordinate, y,
+        y = int(min_y - (min_y % spacing))
+        while y < max_y:
+            self.draw_grid_line_with_number(min_x, y,
+                                            max_x, y,
                                             grid_color, font, False,
                                             self.grid_surface)
             y += spacing
 
-        y = -spacing
-        while y > self.min_coordinate:
-            self.draw_grid_line_with_number(self.min_coordinate, y,
-                                            self.max_coordinate, y,
-                                            grid_color, font, False,
-                                            self.grid_surface)
-            y -= spacing
+    # def draw_grid_line_with_number(self, x1, y1, x2, y2, color, font, vertical, surface):
+    #     # Convert coordinates
+    #     start_pos = self.get_coordinates_in_pixels(x1, y1)
+    #     end_pos = self.get_coordinates_in_pixels(x2, y2)
+        
+    #     # Draw the line
+    #     pygame.draw.line(surface, color, start_pos, end_pos)
 
+    #     # Prepare the number text
+    #     number_text = f"{x1 if vertical else y1}"
+    #     text_surface = font.render(number_text, True, color)
 
+    #     offset = int(self.base_size[0]*0.01)
+        
+    #     # Determine text position
+    #     if vertical:
+    #         text_x = start_pos[0] - text_surface.get_width() / 2
+    #         text_y = self.get_coordinates_in_pixels(0, 0)[1] + offset # TODO: Optimize
+    #         text_x = max(text_x, 0)
+    #     else:
+    #         text_x = self.get_coordinates_in_pixels(0, 0)[0] - text_surface.get_width() - offset
+    #         text_y = start_pos[1] - text_surface.get_height() / 2
+    #         text_y = min(text_y, surface.get_height() - text_surface.get_height())
+
+    #     surface.blit(text_surface, (text_x, text_y))
+        
     def draw_grid_line_with_number(self, x1, y1, x2, y2, color, font, vertical, surface):
         # Convert coordinates
         start_pos = self.get_coordinates_in_pixels(x1, y1)
@@ -248,17 +336,26 @@ class RobotVisualization:
         pygame.draw.line(surface, color, start_pos, end_pos)
 
         # Prepare the number text
-        number_text = f"{x1 if vertical else y1}"
+        number_text = f"{int(100 * x1) if vertical else int(100 * y1)}"
         text_surface = font.render(number_text, True, color)
-
+        offset = int(self.base_size[0] * 0.01)
+        
         # Determine text position
         if vertical:
             text_x = start_pos[0] - text_surface.get_width() / 2
-            text_y = self.get_coordinates_in_pixels(0, 0)[1] + 20 # TODO: Optimize
-            text_x = max(text_x, 0)
+            # Ensure the text stays within the visible area
+            text_x = max(min(text_x, surface.get_width() - text_surface.get_width()), 0)
+            text_y = end_pos[1] + offset if start_pos[1] > end_pos[1] else start_pos[1] - text_surface.get_height() - offset
         else:
-            text_x = self.get_coordinates_in_pixels(0, 0)[0] - text_surface.get_width() - 20
             text_y = start_pos[1] - text_surface.get_height() / 2
-            text_y = min(text_y, surface.get_height() - text_surface.get_height())
+            text_y = max(min(text_y, surface.get_height() - text_surface.get_height()), 0)
+            text_x = end_pos[0] + offset if start_pos[0] > end_pos[0] else start_pos[0] - text_surface.get_width() - offset
+
+        # Clamp text position to the edges if it is off-screen
+        text_x = clamp(text_x, 0, surface.get_width() - text_surface.get_width())
+        text_y = clamp(text_y, 0, surface.get_height() - text_surface.get_height())
 
         surface.blit(text_surface, (text_x, text_y))
+
+def clamp( n, minn, maxn):
+    return max(min(maxn, n), minn)

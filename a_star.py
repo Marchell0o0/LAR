@@ -1,39 +1,45 @@
-from typing import TypeVar, List, Tuple, Dict, Optional
-# from environment import Node
-import math
+from typing import Optional
+import numpy as np
 import heapq
 
-T = TypeVar('T')
-
 class PriorityQueue:
-    def __init__(self):
-        self.elements: List[Tuple[float, T]] = []
-
-    def empty(self) -> bool:
-        return not self.elements
-
-    def put(self, item: T, priority: float):
+    def __init__(self, goal):
+        self.goal = goal
+        self.elements = []
+    
+    def put(self, item, priority=None):
+        if priority is None:
+            priority = self.heuristic(item, self.goal)
         heapq.heappush(self.elements, (priority, item))
 
-    def get(self) -> T:
+    def get(self):
         return heapq.heappop(self.elements)[1]
 
+    def empty(self):
+        return not self.elements
+
+    def heuristic(self, node1, node2):
+        # Euclidean distance as a simple heuristic
+        return distance(node1, node2)
+
 class Node:
-    def __init__(self, x, y, a = 0):
+    def __init__(self, x, y):
         self.x = x
         self.y = y
-        self.a = a
 
     def __lt__(self, other):
-        # Less than (<) comparison, could be based on heuristic, cost, etc.
-        return (self.x, self.y, self.a) < (other.x, other.y, other.a)
+        return (self.x, self.y) < (other.x, other.y)
 
     def __eq__(self, other):
-        if not isinstance(other, type(self)): return NotImplemented
-        return (self.x == other.x) and (self.y == other.y) and (self.a == other.a)
+        if not isinstance(other, type(self)):
+            return NotImplemented
+        return (self.x == other.x) and (self.y == other.y)
 
     def __hash__(self):
-        return hash((self.x, self.y, self.a))
+        return hash((self.x, self.y))
+
+def distance(point1: Node, point2: Node) -> float:
+    return np.sqrt((point1.x - point2.x)**2 + (point1.y - point2.y)**2)
 
 
 class A_star:
@@ -41,52 +47,61 @@ class A_star:
         self.env = env
 
     def heuristic(self, node: Node, goal: Node) -> float:
-        return self.distance(node, goal)
+        return distance(node, goal)
 
-    def distance(self, point1: Node, point2: Node) -> float:
-        return math.sqrt((point1.x - point2.x)**2 + (point1.y - point2.y)**2)
-
-    def get_neighbors(self, node: Node) -> List[Node]:
-        step_size = 1  # Step size can be set here if not global
+    def get_neighbors(self, node: Node) -> list[Node]:
+        step_size = 2
         directions = [(-step_size, 0), (step_size, 0), (0, -step_size), (0, step_size)]
         result = []
 
         for dx, dy in directions:
             new_node = Node(node.x + dx, node.y + dy)
 
-            if not self.env.in_collision(new_node):
+            if not self.in_collision_a_star(new_node):
                 result.append(new_node)
         return result
 
+    def in_collision_a_star(self, node) -> bool:
+        for obstacle in self.env.obstacles:
+            allowed_distance = (obstacle.radius + self.env.robot.radius + self.env.robot.obstacle_clearence) * 100
+            if distance(node, Node(obstacle.x * 100, obstacle.y * 100)) < allowed_distance:
+                return True
+        return False
 
-    def search(self, goal) -> Tuple[Dict[Node, Optional[Node]], Dict[Node, float]]:
-        frontier = PriorityQueue()
-        # start = Node(self.env.robot.x, self.env.robot.y)
-        start = self.env.robot
+    def reconstruct_path(self, came_from, start, goal):
+        current = goal
+        path = []
+        while current != start:
+            path.append(current)
+            current = came_from[current]
+        path.append(start)
+        path.reverse()
+        return [Node(x=node.x / 100, y=node.y / 100) for node in path]
+
+    def search(self, actual_goal) -> list[Node]:
+        start = Node(int(self.env.robot.x * 100), int(self.env.robot.y * 100))
+        goal = Node(int(actual_goal.x * 100), int(actual_goal.y * 100))
+        frontier = PriorityQueue(goal)
+
         frontier.put(start, 0)
-        came_from: Dict[Node, Optional[Node]] = {start: None}
-        cost_so_far: Dict[Node, float] = {start: 0}
-        
-        # dict with each node's neighbors
-        graph: dict[Node, List[Node]] = {}
+        came_from: dict[Node, Optional[Node]] = {start: None}
+        cost_so_far: dict[Node, float] = {start: 0}
 
         while not frontier.empty():
-            current: Node = frontier.get()
-            # print(current.x, current.y)
-            if self.distance(current, goal) <= 1: # cm allowence from the goal
-                print("Goal reached")
-                came_from[goal] = came_from.get(current)
-                break
+            current = frontier.get()
 
-            if not current in graph:
-                graph[current] = self.get_neighbors(current)
+            # if current == goal:
+            if distance(current, goal) <= 5:
+                path = self.reconstruct_path(came_from, start, current)
+                path.append(actual_goal)
+                return path
 
-            for neighbor in graph[current]:
-                new_cost = cost_so_far[current] + self.distance(current, neighbor)
+            for neighbor in self.get_neighbors(current):
+                new_cost = cost_so_far[current] + distance(current, neighbor)
                 if neighbor not in cost_so_far or new_cost < cost_so_far[neighbor]:
                     cost_so_far[neighbor] = new_cost
                     priority = new_cost + self.heuristic(neighbor, goal)
                     frontier.put(neighbor, priority)
                     came_from[neighbor] = current
 
-        return came_from, cost_so_far
+        return []
