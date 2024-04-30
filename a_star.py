@@ -38,7 +38,7 @@ class Node:
     def __hash__(self):
         return hash((self.x, self.y))
 
-def distance(point1: Node, point2: Node) -> float:
+def distance(point1: Node, point2: Node):
     return np.sqrt((point1.x - point2.x)**2 + (point1.y - point2.y)**2)
 
 
@@ -46,11 +46,11 @@ class A_star:
     def __init__(self, env):
         self.env = env
 
-    def heuristic(self, node: Node, goal: Node) -> float:
+    def heuristic(self, node: Node, goal: Node):
         return distance(node, goal)
 
-    def get_neighbors(self, node: Node) -> list[Node]:
-        step_size = 2
+    def get_neighbors(self, node):
+        step_size = 1
         directions = [(-step_size, 0), (step_size, 0), (0, -step_size), (0, step_size)]
         result = []
 
@@ -61,7 +61,7 @@ class A_star:
                 result.append(new_node)
         return result
 
-    def in_collision_a_star(self, node) -> bool:
+    def in_collision_a_star(self, node):
         for obstacle in self.env.obstacles:
             allowed_distance = (obstacle.radius + self.env.robot.radius + self.env.robot.obstacle_clearence) * 100
             if distance(node, Node(obstacle.x * 100, obstacle.y * 100)) < allowed_distance:
@@ -78,7 +78,7 @@ class A_star:
         path.reverse()
         return [Node(x=node.x / 100, y=node.y / 100) for node in path]
 
-    def search(self, actual_goal) -> list[Node]:
+    def search(self, actual_goal):
         start = Node(int(self.env.robot.x * 100), int(self.env.robot.y * 100))
         goal = Node(int(actual_goal.x * 100), int(actual_goal.y * 100))
         frontier = PriorityQueue(goal)

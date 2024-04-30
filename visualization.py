@@ -11,7 +11,8 @@ class RobotVisualization:
         
         pygame.init()
         # self.base_size = (3840, 3840) # 4K square
-        self.base_size = (1080,1080)
+        # self.base_size = (1080,1080)
+        self.base_size = (500, 500)
         self.screen = pygame.display.set_mode(self.base_size)
         self.clock = pygame.time.Clock()
 
@@ -197,11 +198,11 @@ class RobotVisualization:
         pygame.gfxdraw.aacircle(self.screen, obstacle_pos[0], obstacle_pos[1], obstacle_radius_pixels, color)
         pygame.gfxdraw.filled_circle(self.screen, obstacle_pos[0], obstacle_pos[1], obstacle_radius_pixels, color)
 
-        # Draw uncertainty ellipse if not hidden
-        if not hidden and obstacle.index is not None:
-            idx = 3 + 2 * obstacle.index
-            covariance = self.env.kalman_filter.sigma[idx:idx+2, idx:idx+2]
-            self.draw_ellipse_from_covariance(obstacle_pos, covariance, 2)
+        # # Draw uncertainty ellipse if not hidden
+        # if not hidden and obstacle.index is not None:
+        #     idx = 3 + 2 * obstacle.index
+        #     covariance = self.env.kalman_filter.sigma[idx:idx+2, idx:idx+2]
+        #     self.draw_ellipse_from_covariance(obstacle_pos, covariance, 2)
 
     def draw_checkpoint(self, checkpoint):
         self.draw_arrow(checkpoint, (220, 50, 50))
