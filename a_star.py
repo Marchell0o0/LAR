@@ -26,6 +26,8 @@ class Node:
     def __init__(self, x, y):
         self.x = x
         self.y = y
+        # self.distance = 0
+        self.curvature = 0
 
     def __lt__(self, other):
         return (self.x, self.y) < (other.x, other.y)
@@ -37,6 +39,10 @@ class Node:
 
     def __hash__(self):
         return hash((self.x, self.y))
+    
+    def __str__(self) -> str:
+        return f'Node: ({self.x:.4f},{self.y:.4f}), \
+curvature:{self.curvature:.4f}'
 
 def distance(point1: Node, point2: Node):
     return np.sqrt((point1.x - point2.x)**2 + (point1.y - point2.y)**2)
@@ -50,7 +56,7 @@ class A_star:
         return distance(node, goal)
 
     def get_neighbors(self, node):
-        step_size = 1
+        step_size = 5
         directions = [(-step_size, 0), (step_size, 0), (0, -step_size), (0, step_size)]
         result = []
 
@@ -79,6 +85,16 @@ class A_star:
         return [Node(x=node.x / 100, y=node.y / 100) for node in path]
 
     def search(self, actual_goal):
+        """ Searches for a path using A*
+
+
+        Args:
+            actual_goal (Checkpoint): The actual coordinates of the goal in m
+
+        Returns:
+            list[Node]: First node is a node with the coordinates of the robot,
+                the last node is always actual_goal
+        """
         start = Node(int(self.env.robot.x * 100), int(self.env.robot.y * 100))
         goal = Node(int(actual_goal.x * 100), int(actual_goal.y * 100))
         frontier = PriorityQueue(goal)
@@ -91,9 +107,11 @@ class A_star:
             current = frontier.get()
 
             # if current == goal:
-            if distance(current, goal) <= 5:
+            if distance(current, goal) <= 10:
                 path = self.reconstruct_path(came_from, start, current)
                 path.append(actual_goal)
+                # for node in path:
+                    # print(node)
                 return path
 
             for neighbor in self.get_neighbors(current):
@@ -105,3 +123,5 @@ class A_star:
                     came_from[neighbor] = current
 
         return []
+    
+    

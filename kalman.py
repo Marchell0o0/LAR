@@ -1,72 +1,455 @@
+import numpy as np
+from environment import Obstacle
+
+class KalmanFilter:
+    def __init__(self, env):
+        self.env = env
+        self.sigma = 0.01*np.eye(3, dtype=float)
+        self.R = np.diag([0.0001, 0.0001, 0.0001]) # sigma x, y, a
+        self.Q = np.diag([0.1, 0.2]) # sigma r, phi, color
+        
+        #acceptable mahalanobis distance
+        self.alpha = 0.3
+        
+        self.mu = np.array([[self.env.robot.x],[self.env.robot.y],[self.env.robot.a]], dtype=np.float64)
+
+    def Fx(self):
+        total_state_length = 3 + 2 * len(self.env.obstacles)  # 3 for robot state, 3 per obstacle
+        Fx_base = np.eye(3)  # Base for robot state
+        Fx_obstacles = np.zeros((3, total_state_length - 3))  # Extend to cover all obstacles
+        return np.block([Fx_base, Fx_obstacles])  # Combined state transition matrix
+
+    def prediction_update(self, u, dt):
+        v, w = u[0], u[1]
+        theta = self.mu[2]
+        if abs(w) > 1e-5:
+            dx = -(v / w) * np.sin(theta) + (v / w) * np.sin(theta + w * dt)
+            dy = (v / w) * np.cos(theta) - (v / w) * np.cos(theta + w * dt)
+            dtheta = w * dt
+        else:
+            dx = v * dt * np.cos(theta)
+            dy = v * dt * np.sin(theta)
+            dtheta = 0
+            
+        self.mu[0] += dx          
+        self.mu[1] += dy          
+        self.mu[2] += dtheta          
+        self.mu[2] = np.arctan2(np.sin(self.mu[2]), np.cos(self.mu[2]))                              
+        # Jacobian matrix G for state transition
+        G = np.zeros((3, 3))
+        if abs(w) > 1e-5:
+            G[0, 2] = -(v / w) * np.cos(theta) + (v / w) * np.cos(theta + w * dt)
+            G[1, 2] = -(v / w) * np.sin(theta) + (v / w) * np.sin(theta + w * dt)
+        else:
+            G[0, 2] = -v * dt * np.sin(theta)
+            G[1, 2] = v * dt * np.cos(theta)
+            
+        Fx = self.Fx()
+        G = np.eye(self.sigma.shape[0]) + Fx.T @ G @ Fx
+        self.sigma = G @ self.sigma @ G.T
+        self.sigma = self.sigma + Fx.T @ self.R @ Fx
+        
+        return
+
+    def compute_mahalanobis_distance(self, measurement, obstacle_idx):
+        dist, phi, color = measurement
+        if isinstance(dist, np.ndarray):
+                dist = dist.item()
+        if isinstance(phi, np.ndarray):
+            phi = phi.item()
+        if isinstance(color, np.ndarray):
+            color = color.item()
+            
+        delta = np.array([[self.mu[obstacle_idx] - self.env.robot.x],
+                          [self.mu[obstacle_idx + 1] - self.env.robot.y]])
+        q = np.linalg.norm(delta)**2
+        
+        # min_q = 1e-6
+        # q = max(q, min_q)
+        
+        sqrt_q = np.sqrt(q)
+        angle = np.arctan2(delta[1, 0], delta[0, 0]) - self.env.robot.a
+        angle = np.arctan2(np.sin(angle), np.cos(angle))
+        
+        z_hat = np.vstack((sqrt_q, angle)).reshape(2, 1)
+        
+        z_actual = np.array([[dist], [phi]], dtype = np.float64)
+        z_actual = np.reshape(z_actual, (2, 1))
+        
+        z_delta = (z_actual - z_hat)
+        H = self.calculate_jacobian(delta, q, obstacle_idx)
+        # print(f"delta: {delta}")
+        # print(f"q: {q}")
+        # print(f"H: {H}")
+        # z_delta[2] = 0
+        psi = H @ self.sigma @ H.T + self.Q
+        # print(psi)
+        # distance for comparison to assign 
+        pi = z_delta.T @ np.linalg.inv(psi) @ z_delta
+        return pi
+
+    def measurement_update(self, zs):
+        for z in zs:
+            dist, phi, color = z
+            # if isinstance(dist, np.ndarray):
+            #     dist = dist.item()
+            # if isinstance(phi, np.ndarray):
+            #     phi = phi.item()
+            # if isinstance(color, np.ndarray):
+            #     color = color.item()
+            
+            measured_x = self.mu[0] + dist * np.cos(phi + self.mu[2])
+            measured_y = self.mu[1] + dist * np.sin(phi + self.mu[2])
+            measured_obstacle = Obstacle(measured_x, measured_y, color)
+            # print("Measured:")
+            # print(measured_obstacle)
+            # Find the closest obstacle based on Mahalanobis distance
+            closest_idx = -1
+            min_distance = float('inf')
+            # print("Comparing mahalanobis distances")
+            # print("For this obstacle", measured_obstacle)
+            for idx, obstacle in enumerate(self.env.obstacles):
+                # print(obstacle)
+                mahalanobis_distance = self.compute_mahalanobis_distance(z, idx * 2 + 3)
+                # print("Distance from this obstacle:", mahalanobis_distance)
+                if mahalanobis_distance < self.alpha and mahalanobis_distance < min_distance:
+                    min_distance = mahalanobis_distance
+                    closest_idx = idx * 2 + 3
+                # print()
+                    
+            added_new = False
+            # Expand the state vector and covariance matrix if necessary
+            if closest_idx == -1:
+                added_new = True
+                distance_to_robot = np.sqrt((measured_obstacle.x - self.env.robot.x)**2 + (measured_obstacle.y - self.env.robot.y)**2)
+                # if  distance_to_robot < self.env.robot.max_detection_range + 0.2:
+                # print("---------------Adding a new obstacle--------------")
+                # if min_distance > 100:
+                    # print("That's a big distance")
+                # print(measured_obstacle)
+                # No existing obstacle was within the threshold, create a new one
+                closest_idx = self.mu.shape[0]
+                new_size = closest_idx + 2
+                
+                # Expand the state vector
+                extension = np.zeros((2, 1))
+                self.mu = np.vstack((self.mu, extension))
+                
+                # Expand the covariance matrix
+                sigma_extension = np.zeros((new_size, new_size))
+                sigma_extension[:self.sigma.shape[0], :self.sigma.shape[1]] = self.sigma
+                new_diag = 0.1 * np.eye(2)
+                sigma_extension[-2:, -2:] = new_diag
+                self.sigma = sigma_extension
+                
+                # Initialize the new obstacle
+                self.env.obstacles.append(measured_obstacle)
+                
+                self.mu[closest_idx] = measured_x
+                self.mu[closest_idx + 1] = measured_y
+                    # self.mu[closest_idx + 2] = color
+                    # print("list of current obstacles")
+                    # for obstacle in self.env.obstacles:
+                        # print(obstacle)
+                # else:
+                    # print("Shits happening")
+                
+            # print("Obstacle  idx:", closest_idx)
+            # Update the state and covariance matrices
+            delta = np.array([[self.mu[closest_idx] - self.env.robot.x],
+                              [self.mu[closest_idx + 1] - self.env.robot.y]])
+            q = np.linalg.norm(delta)**2
+            # min_q = 1e-6
+            # q = max(q, min_q)
+            sqrt_q = np.sqrt(q)
+            angle = np.arctan2(delta[1, 0], delta[0, 0]) - self.env.robot.a
+            angle = np.arctan2(np.sin(angle), np.cos(angle))
+            # current_color = self.mu[closest_idx + 2]
+            
+            z_hat = np.vstack((sqrt_q, angle)).reshape(2, 1)
+            
+            z_actual = np.array([[dist], [phi]], dtype = np.float64)
+            z_actual = np.reshape(z_actual, (2, 1))
+            
+            z_delta = z_actual - z_hat
+            H = self.calculate_jacobian(delta, q, closest_idx)
+            
+            S = H @ self.sigma @ H.T + self.Q
+            K = self.sigma @ H.T @ np.linalg.inv(S)
+            
+
+            self.mu += K @ z_delta
+            self.mu[2] = np.arctan2(np.sin(self.mu[2]), np.cos(self.mu[2]))                              
+            self.sigma = (np.eye(self.sigma.shape[0]) - K @ H) @ self.sigma
+            # if added_new:
+            #     print(f"Z delta: {z_delta}")
+            #     print(f"delta: {delta}")
+            #     print(f"q: {q}")
+            #     print(f"H: {H}")
+            #     print(f"K: {K}")
+            #     print("Current estimate of newly added", self.mu[closest_idx], self.mu[closest_idx + 1])
+            # print(self.mu)
+                
+    def calculate_jacobian(self, delta, q, idx):
+        sqrt_q = np.sqrt(q)
+        # Compute the Jacobian matrix for the measurement function
+        H = np.zeros((2, self.sigma.shape[0]))
+        H[0, 0] = -delta[0] / sqrt_q
+        H[0, 1] = -delta[1] / sqrt_q
+        H[1, 0] = delta[1] / q
+        H[1, 1] = -delta[0] / q
+        H[1, 2] = -1
+        
+        H[0, idx] = delta[0] / sqrt_q
+        H[0, idx + 1] = delta[1] / sqrt_q
+        H[1, idx] = -delta[1] / q
+        H[1, idx + 1] = delta[0] / q
+        # H[2, idx + 2] = 1
+        return H
+
+    def update_environment(self):
+        self.env.robot.x = self.mu[0]
+        self.env.robot.y = self.mu[1]
+        self.env.robot.a = self.mu[2]
+        for idx, obstacle in enumerate(self.env.obstacles):
+            mu_idx = 3 + idx * 2
+            obstacle.x = self.mu[mu_idx]
+            obstacle.y = self.mu[mu_idx + 1]
+            # obstacle.color = self.mu[mu_idx + 2]
+            
+    def process_measurement(self, u, z, dt):
+        # print("Processing move:", u)
+        self.prediction_update(u, dt)
+        
+        # print("Robot state post-prediction:", self.env.robot.x, self.env.robot.y, self.env.robot.a)
+        # if z:
+            # print("Processing measurement:", z)
+        self.measurement_update(z)
+        self.update_environment()
+        # print("Robot state post-correction:", self.env.robot.x, self.env.robot.y, self.env.robot.a)
+
+
+
+
+
+
+
 # import numpy as np
 # from environment import Obstacle
 
-
-
-    # def measurement_update(self, zs):
-    #     '''
-    #     This function performs the measurement step of the EKF. Using the linearized observation model, it
-    #     updates both the state estimate mu and the state uncertainty sigma based on range and bearing measurements
-    #     that are made between robot and landmarks.
-    #     Inputs:
-    #     - mu: state estimate (robot pose and landmark positions)
-    #     - sigma: state uncertainty (covariance matrix)
-    #     - zs: list of 3-tuples, (dist,phi,lidx) from measurement function
-    #     Outpus:
-    #     - mu: updated state estimate
-    #     - sigma: updated state uncertainty
-    #     '''
-    #     delta_zs = [np.zeros((2,1)) for lidx in range(self.N)] # A list of how far an actual measurement is from the estimate measurement
-    #     Ks = [np.zeros((mu.shape[0],2)) for lidx in range(self.N)] # A list of matrices stored for use outside the measurement for loop
-    #     Hs = [np.zeros((2,mu.shape[0])) for lidx in range(self.N)] # A list of matrices stored for use outside the measurement for loop
-    #     for z in zs:
-    #         measured = False
-    #         x_obstacle = 0
-    #         y_obstacle = 0
-    #         for obstacle in self.env.obstacles:
-    #             # obstacle was measured previously                
-    #             if z[3] == obstacle.index:
-    #                 measured = True
-    #                 x_obstacle = obstacle.x
-    #                 y_obstacle = obstacle.y
-            
-    #         # believe the current measurement
-    #         if not measured:
-    #             x_obstacle = self.env.robot.x + z[0] * np.cos(z[1] + self.env.robot.a)
-    #             y_obstacle = self.env.robot.y + z[0] * np.sin(z[1] + self.env.robot.a)
-    #             self.env.obstacles.add(Obstacle(x_obstacle, y_obstacle, z[2], z[3]))
-            
-    #         # obstacle is surely in the env now
-    #         delta  = np.array([[x_obstacle],[y_obstacle]]) - np.array([[self.env.robot.x],[self.env.robot.y]])
-    #         q = np.linalg.norm(delta)**2
-            
-    #         # Distance between robot estimate and and landmark estimate, i.e., distance estimate
-    #         dist_est = np.sqrt(q) 
-            
-    #         # Estimated angled between robot heading and landmark
-    #         phi_est = np.arctan2(delta[1,0],delta[0,0]) - self.env.robot.a
-    #         phi_est = np.arctan2(np.sin(phi_est),np.cos(phi_est)) 
-            
-    #         # should add the signature estimation here
-    #         z_est_arr = np.array([[dist_est],[phi_est]]) # Estimated observation, in numpy array
-    #         z_act_arr = np.array([[z[0]],[z[1]]]) # Actual observation in numpy array
-    #         delta_zs[lidx] = z_act_arr - z_est_arr # Difference between actual and estimated observation
-
-    #         # Helper matrices in computing the measurement update
-    #         Fxj = np.block([[Fx],[np.zeros((2,Fx.shape[1]))]])
-    #         Fxj[3 : 3 + 2,3 + 2*lidx:3 + 2*lidx+2] = np.eye(2)
-    #         H = np.array([[-delta[0,0]/np.sqrt(q),-delta[1,0]/np.sqrt(q),0,delta[0,0]/np.sqrt(q),delta[1,0]/np.sqrt(q)],\
-    #                     [delta[1,0]/q,-delta[0,0]/q,-1,-delta[1,0]/q,+delta[0,0]/q]])
-    #         H = H.dot(Fxj)
-    #         Hs[lidx] = H # Added to list of matrices
-    #         Ks[lidx] = sigma.dot(np.transpose(H)).dot(np.linalg.inv(H.dot(sigma).dot(np.transpose(H)) + Q)) # Add to list of matrices
+# class KalmanFilter:
+#     def __init__(self, env):
+#         self.env = env
+#         self.sigma = 0.01*np.eye(3, dtype=float)
+#         self.R = np.diag([0.0001, 0.0001, 0.0001]) # sigma x, y, a
+#         self.Q = np.diag([0.1, 0.2, 0.01]) # sigma r, phi, color
         
-    #     # After storing appropriate matrices, perform measurement update of mu and sigma
-    #     mu_offset = np.zeros(mu.shape) # Offset to be added to state estimate
-    #     sigma_factor = np.eye(sigma.shape[0]) # Factor to multiply state uncertainty
-    #     for lidx in range(self.N):
-    #         mu_offset += Ks[lidx].dot(delta_zs[lidx]) # Compute full mu offset
-    #         sigma_factor -= Ks[lidx].dot(Hs[lidx]) # Compute full sigma factor
-    #     mu = mu + mu_offset # Update state estimate
-    #     sigma = sigma_factor.dot(sigma) # Update state uncertainty
-    #     return mu,sigma
+#         #acceptable mahalanobis distance
+#         self.alpha = 7.8
+        
+#         self.mu = np.array([[self.env.robot.x],[self.env.robot.y],[self.env.robot.a]], dtype=np.float64)
+
+#     def Fx(self):
+#         total_state_length = 3 + 3 * len(self.env.obstacles)  # 3 for robot state, 3 per obstacle
+#         Fx_base = np.eye(3)  # Base for robot state
+#         Fx_obstacles = np.zeros((3, total_state_length - 3))  # Extend to cover all obstacles
+#         return np.block([Fx_base, Fx_obstacles])  # Combined state transition matrix
+
+#     def prediction_update(self, u, dt):
+#         v, w = u[0], u[1]
+#         theta = self.mu[2]
+#         if abs(w) > 1e-5:
+#             dx = -(v / w) * np.sin(theta) + (v / w) * np.sin(theta + w * dt)
+#             dy = (v / w) * np.cos(theta) - (v / w) * np.cos(theta + w * dt)
+#             dtheta = w * dt
+#         else:
+#             dx = v * dt * np.cos(theta)
+#             dy = v * dt * np.sin(theta)
+#             dtheta = 0
+            
+#         self.mu[0] += dx          
+#         self.mu[1] += dy          
+#         self.mu[2] += dtheta          
+#         self.mu[2] = np.arctan2(np.sin(self.mu[2]), np.cos(self.mu[2]))                              
+#         # Jacobian matrix G for state transition
+#         G = np.zeros((3, 3))
+#         if abs(w) > 1e-5:
+#             G[0, 2] = -(v / w) * np.cos(theta) + (v / w) * np.cos(theta + w * dt)
+#             G[1, 2] = -(v / w) * np.sin(theta) + (v / w) * np.sin(theta + w * dt)
+#         else:
+#             G[0, 2] = -v * dt * np.sin(theta)
+#             G[1, 2] = v * dt * np.cos(theta)
+            
+#         Fx = self.Fx()
+#         G = np.eye(self.sigma.shape[0]) + Fx.T @ G @ Fx
+#         self.sigma = G @ self.sigma @ G.T
+#         self.sigma = self.sigma + Fx.T @ self.R @ Fx
+        
+#         return
+
+#     def compute_mahalanobis_distance(self, measurement, obstacle_idx, robot):
+#         dist, phi, color = measurement
+#         if isinstance(dist, np.ndarray):
+#                 dist = dist.item()
+#         if isinstance(phi, np.ndarray):
+#             phi = phi.item()
+#         if isinstance(color, np.ndarray):
+#             color = color.item()
+            
+#         delta = np.array([[self.mu[obstacle_idx] - self.env.robot.x], [self.mu[obstacle_idx + 1] - self.env.robot.y]])
+#         # print(self.mu[obstacle_idx], self.mu[obstacle_idx + 1])
+#         q = np.linalg.norm(delta)**2
+        
+#         min_q = 1e-6
+#         q = max(q, min_q)
+        
+#         sqrt_q = np.sqrt(q)
+#         angle = np.arctan2(delta[1, 0], delta[0, 0]) - self.env.robot.a
+#         current_color = self.mu[obstacle_idx + 2]
+#         z_hat = np.vstack((sqrt_q, angle, current_color)).reshape(3, 1)
+        
+#         z_actual = np.array([[dist], [phi], [color]], dtype = np.float64)
+#         z_actual = np.reshape(z_actual, (3, 1))
+        
+#         z_delta = (z_actual - z_hat)
+#         H = self.calculate_jacobian(delta, q, obstacle_idx)
+#         # print(f"delta: {delta}")
+#         # print(f"q: {q}")
+#         # print(f"H: {H}")
+#         # z_delta[2] = 0
+#         psi = H @ self.sigma @ H.T + self.Q
+#         # print(psi)
+#         # distance for comparison to assign 
+#         pi = z_delta.T @ np.linalg.inv(psi) @ z_delta
+#         return pi
+
+#     def measurement_update(self, zs):
+#         for z in zs:
+#             dist, phi, color = z
+#             # if isinstance(dist, np.ndarray):
+#             #     dist = dist.item()
+#             # if isinstance(phi, np.ndarray):
+#             #     phi = phi.item()
+#             # if isinstance(color, np.ndarray):
+#             #     color = color.item()
+            
+#             measured_x = self.mu[0] + dist * np.cos(phi + self.mu[2])
+#             measured_y = self.mu[1] + dist * np.sin(phi + self.mu[2])
+#             measured_obstacle = Obstacle(measured_x, measured_y, color)
+#             # print("Measured:")
+#             # print(measured_obstacle)
+#             # Find the closest obstacle based on Mahalanobis distance
+#             closest_idx = -1
+#             min_distance = float('inf')
+#             # print("Comparing mahalanobis distances")
+#             # print("For this obstacle", measured_obstacle)
+#             for idx, obstacle in enumerate(self.env.obstacles):
+#                 # print(obstacle)
+#                 mahalanobis_distance = self.compute_mahalanobis_distance(z, idx * 3 + 3, self.env.robot)
+#                 # print("Distance from this obstacle:", mahalanobis_distance)
+#                 if mahalanobis_distance < self.alpha and mahalanobis_distance < min_distance:
+#                     min_distance = mahalanobis_distance
+#                     closest_idx = idx * 3 + 3
+#                 # print()
+                    
+#             # Expand the state vector and covariance matrix if necessary
+#             if closest_idx == -1:
+#                 if min_distance > 100:
+#                     print("That's a big distance")
+#                 print("---------------Adding a new obstacle--------------")
+#                 print(measured_obstacle)
+#                 # No existing obstacle was within the threshold, create a new one
+#                 closest_idx = self.mu.shape[0]
+#                 new_size = closest_idx + 3
+                
+#                 # Expand the state vector
+#                 extension = np.zeros((3, 1))
+#                 self.mu = np.vstack((self.mu, extension))
+                
+#                 # Expand the covariance matrix
+#                 sigma_extension = np.zeros((new_size, new_size))
+#                 sigma_extension[:self.sigma.shape[0], :self.sigma.shape[1]] = self.sigma
+#                 new_diag = 1 * np.eye(3)
+#                 sigma_extension[-3:, -3:] = new_diag
+#                 self.sigma = sigma_extension
+                
+#                 # Initialize the new obstacle
+#                 self.env.obstacles.append(measured_obstacle)
+                
+#                 self.mu[closest_idx] = measured_x
+#                 self.mu[closest_idx + 1] = measured_y
+#                 self.mu[closest_idx + 2] = color
+#                 print(measured_obstacle)
+#                 print("list of current obstacles")
+#                 for obstacle in self.env.obstacles:
+#                     print(obstacle)
+                
+#             # print("Obstacle  idx:", closest_idx)
+#             # Update the state and covariance matrices
+#             delta = np.array([[self.mu[closest_idx] - self.env.robot.x], [self.mu[closest_idx + 1] - self.env.robot.y]])
+#             q = np.linalg.norm(delta)**2
+#             min_q = 1e-6
+#             q = max(q, min_q)
+#             sqrt_q = np.sqrt(q)
+#             angle = np.arctan2(delta[1, 0], delta[0, 0]) - self.env.robot.a
+#             current_color = self.mu[closest_idx + 2]
+            
+#             z_hat = np.vstack((sqrt_q, angle, current_color)).reshape(3, 1)
+            
+#             z_actual = np.array([[dist], [phi], [color]], dtype = np.float64)
+#             z_actual = np.reshape(z_actual, (3, 1))
+            
+#             z_delta = z_actual - z_hat
+#             # print("Z delta: ", z_delta)
+#             H = self.calculate_jacobian(delta, q, closest_idx)
+#             # print(f"delta: {delta}")
+#             # print(f"q: {q}")
+#             # print(f"H: {H}")
+#             S = H @ self.sigma @ H.T + self.Q
+#             K = self.sigma @ H.T @ np.linalg.inv(S)
+            
+#             # print(f"K: {K}")
+
+#             self.mu += K @ z_delta
+#             self.mu[2] = np.arctan2(np.sin(self.mu[2]), np.cos(self.mu[2]))                              
+#             self.sigma = (np.eye(self.sigma.shape[0]) - K @ H) @ self.sigma
+#             # print(self.mu)
+                
+#     def calculate_jacobian(self, delta, q, idx):
+#         sqrt_q = np.sqrt(q)
+#         # Compute the Jacobian matrix for the measurement function
+#         H = np.zeros((3, self.sigma.shape[0]))
+#         H[0, 0] = -delta[0] / sqrt_q
+#         H[0, 1] = -delta[1] / sqrt_q
+#         H[1, 0] = delta[1] / q
+#         H[1, 1] = -delta[0] / q
+#         H[1, 2] = -1
+        
+#         H[0, idx] = delta[0] / sqrt_q
+#         H[0, idx + 1] = delta[1] / sqrt_q
+#         H[1, idx] = -delta[1] / q
+#         H[1, idx + 1] = delta[0] / q
+#         H[2, idx + 2] = 1
+#         return H
+
+#     def update_environment(self):
+#         self.env.robot.x = self.mu[0]
+#         self.env.robot.y = self.mu[1]
+#         self.env.robot.a = self.mu[2]
+#         for idx, obstacle in enumerate(self.env.obstacles):
+#             mu_idx = 3 + idx * 3
+#             obstacle.x = self.mu[mu_idx]
+#             obstacle.y = self.mu[mu_idx + 1]
+#             obstacle.color = self.mu[mu_idx + 2]
+            
+#     def process_measurement(self, u, z, dt):
+#         # print("Processing move:", u)
+#         self.prediction_update(u, dt)
+        
+#         # print("Robot state post-prediction:", self.env.robot.x, self.env.robot.y, self.env.robot.a)
+#         # if z:
+#             # print("Processing measurement:", z)
+#         self.measurement_update(z)
+#         self.update_environment()
+#         # print("Robot state post-correction:", self.env.robot.x, self.env.robot.y, self.env.robot.a)
+
