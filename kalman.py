@@ -5,8 +5,8 @@ class KalmanFilter:
     def __init__(self, env):
         self.env = env
         self.sigma = 0.01*np.eye(3, dtype=float)
-        self.R = np.diag([0.0001, 0.0001, 0.0001]) # sigma x, y, a
-        self.Q = np.diag([0.1, 0.2]) # sigma r, phi, color
+        self.R = np.diag([0.0025, 0.0025, 0.0001]) # sigma x, y, a
+        self.Q = np.diag([0.01, np.deg2rad(2)]) # sigma r, phi, color
         
         #acceptable mahalanobis distance
         self.alpha = 0.3
@@ -138,7 +138,7 @@ class KalmanFilter:
                 # Expand the covariance matrix
                 sigma_extension = np.zeros((new_size, new_size))
                 sigma_extension[:self.sigma.shape[0], :self.sigma.shape[1]] = self.sigma
-                new_diag = 0.1 * np.eye(2)
+                new_diag = 100 * np.eye(2)
                 sigma_extension[-2:, -2:] = new_diag
                 self.sigma = sigma_extension
                 

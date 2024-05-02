@@ -13,8 +13,8 @@ class RobotVisualization:
         
         pygame.init()
         # self.base_size = (3840, 3840) # 4K square
-        self.base_size = (1080,1080)
-        # self.base_size = (500, 500)
+        # self.base_size = (1080,1080)
+        self.base_size = (500, 500)
         self.screen = pygame.display.set_mode(self.base_size)
         self.clock = pygame.time.Clock()
 
@@ -71,6 +71,7 @@ class RobotVisualization:
             self.draw_checkpoint(checkpoint)
 
         self.draw_robot(self.env.robot)
+        self.draw_robot(self.env.real_robot, True)
         
     def draw_path(self, path):
         updated_rects = []  # List to store rectangles that need to be updated
@@ -169,15 +170,20 @@ class RobotVisualization:
         # Blit the rotated surface onto the main screen
         self.screen.blit(rotated_surface, new_rect)
         
-    def draw_robot(self, robot):
+    def draw_robot(self, robot, real = False):
         # Existing code to draw the robot
-        self.draw_arrow(robot, (50, 220, 50))
+        if real:
+            color = (0, 70, 0)
+        else:
+            color = (100, 220, 100)
+        self.draw_arrow(robot, color)
         robot_center = self.get_coordinates_in_pixels(robot.x, robot.y)
         robot_radius_pixels = self.get_length_in_pixels(robot.radius)
-        pygame.gfxdraw.aacircle(self.screen, robot_center[0], robot_center[1], robot_radius_pixels, (0, 255, 0))
-        self.draw_ellipse_from_covariance(robot_center,
-                                          self.kalman_filter.sigma,
-                                          n_std = 2)
+        pygame.gfxdraw.aacircle(self.screen, robot_center[0], robot_center[1], robot_radius_pixels, color)
+        if not real:
+            self.draw_ellipse_from_covariance(robot_center,
+                                              self.kalman_filter.sigma,
+                                              n_std = 2)
 
         # Calculate FOV visualization
         fov_radius_pixels = self.get_length_in_pixels(robot.max_detection_range)
@@ -199,11 +205,11 @@ class RobotVisualization:
         # Draw the FOV arc
         rect = pygame.Rect(robot_center[0] - fov_radius_pixels, robot_center[1] - fov_radius_pixels,
                         2 * fov_radius_pixels, 2 * fov_radius_pixels)
-        pygame.draw.arc(self.screen, (100, 220, 100), rect, start_angle_rad, end_angle_rad, 1)
+        pygame.draw.arc(self.screen, color, rect, start_angle_rad, end_angle_rad, 1)
 
         # Optional: Draw lines to denote the edges of the FOV
-        pygame.draw.line(self.screen, (100, 220, 100), robot_center, start_point, 1)
-        pygame.draw.line(self.screen, (100, 220, 100), robot_center, end_point, 1)
+        pygame.draw.line(self.screen, color, robot_center, start_point, 1)
+        pygame.draw.line(self.screen, color, robot_center, end_point, 1)
 
 
     def draw_obstacle(self, obstacle, index, hidden):
