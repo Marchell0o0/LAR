@@ -21,6 +21,13 @@ class PathExecution:
         self.current_speed = 0
         self.previous_move_time = 0
 
+    def update_path(self):
+        for node in self.path:
+            for obstacle in self.env.obstacles:
+                allowed_radius = obstacle.radius + self.env.robot.radius + self.env.robot.obstacle_clearence
+            if distance(node, obstacle) < allowed_radius:
+                self.path = []
+
     def update_lookahead_point(self):
         min_dist = float('inf')
         

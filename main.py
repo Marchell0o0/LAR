@@ -106,8 +106,8 @@ def main():
     kalman_filter = KalmanFilter(env)
     
     if visualization:
-        screen_dimensions = (2160, 3840)
-        # screen_dimensions = (1440, 900)
+        # screen_dimensions = (2160, 3840)
+        screen_dimensions = (1440, 900)
         vis = RobotVisualization(env, path_execution, kalman_filter, screen_dimensions)
     
     if turtlebot:
@@ -122,6 +122,7 @@ def main():
     previous_odometry = (0, 0, 0)
     measurements = []
     print("Starting main loop")
+    next_move = (0, 0)
     # with cProfile.Profile() as pr:
     while running:   
         if visualization:       
@@ -132,14 +133,15 @@ def main():
             vis.show_cv2()
         
         if turtlebot:
-            odometry = turtle.get_odometry()
             if previous_time == 0:
                 previous_time = time.time()
         
             dt = time.time() - previous_time
             angular_velocity = -(previous_odometry[2] - odometry[2]) / dt
                     
-            # Compute the straight-line distance between the current and previous positions
+                    
+            # TODO: Check if should do that, or maybe get_time() is right        
+            odometry = turtle.get_odometry()
             delta_x = odometry[0] - previous_odometry[0]
             delta_y = odometry[1] - previous_odometry[1]
             distance_straight = np.sqrt(delta_x**2 + delta_y**2)
@@ -158,39 +160,30 @@ def main():
             print("Odometry:", odometry)
             print("Robot position:", env.robot.x, env.robot.y, env.robot.a)
 
-            measurements = env.get_measurement()
-            if len(env.obstacles) > previous_obstacles_size:
-                previous_obstacles_size = len(env.obstacles)
-                print("Resetting path")
-                path_execution.path = []
-                previous_time = 0
-
             kalman_filter.process_measurement(previous_move, measurements, dt)
             env.simulate_movement(previous_move, dt)
+            path_execution.update_path()
+                
+            measurements = env.get_measurement()
 
             next_move = path_execution.get_current_move()
-
-
             turtle.cmd_velocity(angular = next_move[1], linear = next_move[0])
             rate.sleep()
             
             if (cv2.waitKey(1) & 0xFF == ord('q')) or turtle.is_shutting_down():
                 running = False
         else:
-            measurements = env.get_measurement()
-            if len(env.obstacles) > previous_obstacles_size:
-                previous_obstacles_size = len(env.obstacles)
-                print("Resetting path")
-                path_execution.path = []
-                previous_time = 0
                 
             if previous_time == 0:
                 previous_time = time.time()
-        
-            dt = time.time() - previous_time    
-            next_move = path_execution.get_current_move()
+            dt = time.time() - previous_time
+
+            measurements = env.get_measurement()
             kalman_filter.process_measurement(next_move, measurements, dt)
             env.simulate_movement(next_move, dt)
+            path_execution.update_path()
+            next_move = path_execution.get_current_move()
+
             previous_time = time.time()
             
             if cv2.waitKey(1) & 0xFF == ord('q'):
