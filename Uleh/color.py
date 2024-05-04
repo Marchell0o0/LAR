@@ -94,7 +94,8 @@ class ColorSettings:
         
         image = turtle.get_rgb_image()
         
-        if image:
+        
+        if image is not None:
             for color_name in self.colors:
                 
                     hue_value, hue_deviation, saturation_threshold = self.calculate_color_thresholds(image, color_name)
