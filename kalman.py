@@ -5,7 +5,7 @@ class KalmanFilter:
     def __init__(self, env):
         self.env = env
         self.sigma = 0.01*np.eye(3, dtype=float)
-        self.R = np.diag([0.0025, 0.0025, 0.0001]) # sigma x, y, a
+        self.R = np.diag([0.0001, 0.0001, 0.0001]) # sigma x, y, a
         self.Q = np.diag([0.01, np.deg2rad(2)]) # sigma r, phi, color
         
         #acceptable mahalanobis distance

@@ -3,21 +3,20 @@ import time
 import cProfile 
 import pstats
 import numpy as np
+import sys
 
 from visualization import RobotVisualization
 from environment import Environment, Robot, Checkpoint, Obstacle
 from path_execution import PathExecution
 from path_creation import PathCreation
 from kalman import KalmanFilter
-from robolab_turtlebot import Turtlebot, get_time, Rate
 
 # Running pygame without the display to resolve a dependency with OpenGL
 import pygame 
 import os
 os.environ['SDL_VIDEODRIVER'] = 'dummy'
 
-def main():
-
+def initialize_turtle():
     # turtle = Turtlebot(rgb = True, depth = True, pc = True)
     
     turtle = Turtlebot()
@@ -35,10 +34,22 @@ def main():
     # print("Odometry received")
     
     turtle.reset_odometry()
-    odometry = turtle.get_odometry()
+    turtle.get_odometry()
     
     rate = Rate(1000)
-    
+    return turtle, rate
+
+def main():
+
+    visualization = False
+    turtlebot = False
+    for argument in sys.argv:
+        if argument == "-vis":
+            visualization = True
+        elif argument == "-turtlebot":
+            turtlebot = True
+
+
     # env = Environment(Robot(0, 0, 0), 
     #                     [Checkpoint(50, 50, 0),
     #                      Checkpoint(100, 0, 180),
@@ -89,95 +100,107 @@ def main():
     #                     [],
     #                     [Obstacle(0.4, 0.1, 0)
     #                      ])
+    
     path_creation = PathCreation(env)
     path_execution = PathExecution(env, path_creation)
     kalman_filter = KalmanFilter(env)
     
-    # screen_dimensions = (2160, 3840)
-    screen_dimensions = (1440, 900)
-    vis = RobotVisualization(env, path_execution, kalman_filter, screen_dimensions)
+    if visualization:
+        screen_dimensions = (2160, 3840)
+        # screen_dimensions = (1440, 900)
+        vis = RobotVisualization(env, path_execution, kalman_filter, screen_dimensions)
+    
+    if turtlebot:
+        from robolab_turtlebot import Turtlebot, get_time, Rate
+        turtle, rate = initialize_turtle()
+    
     
     running = True
     counter = 0
     previous_time = 0
-    # with cProfile.Profile() as pr:
     previous_obstacles_size = 0
     previous_odometry = (0, 0, 0)
-    print("Starting main loop")
     measurements = []
-    while running:          
-        if counter % 10 == 0:
+    print("Starting main loop")
+    # with cProfile.Profile() as pr:
+    while running:   
+        if visualization:       
+            # if counter % 10 == 0:
             vis.screen.fill((0, 0, 0))
             vis.draw_everything()
 
             vis.show_cv2()
-
-        odometry = turtle.get_odometry()
-        if previous_time == 0:
-            previous_time = time.time()
-    
-        dt = time.time() - previous_time
-        angular_velocity = -(previous_odometry[2] - odometry[2]) / dt
-                
-        # Compute the straight-line distance between the current and previous positions
-        delta_x = odometry[0] - previous_odometry[0]
-        delta_y = odometry[1] - previous_odometry[1]
-        distance_straight = np.sqrt(delta_x**2 + delta_y**2)
-
-        # Calculate the linear velocity considering curvature
-        # if angular_velocity > 1e-5:
-        #     radius = distance_straight / angular_velocity
-        #     linear_velocity = radius * angular_velocity
-        # else:
-        linear_velocity = distance_straight / dt
-        print("Previous move velocity:", linear_velocity)
-        previous_move = (linear_velocity, angular_velocity)
-        previous_time = time.time()
-        previous_odometry = odometry
         
-        # env.robot.x = odometry[0]
-        # env.robot.y = odometry[1]
-        # env.robot.a = odometry[2]
-        print("Odometry:", odometry)
-        print("Robot position:", env.robot.x, env.robot.y, env.robot.a)
+        if turtlebot:
+            odometry = turtle.get_odometry()
+            if previous_time == 0:
+                previous_time = time.time()
+        
+            dt = time.time() - previous_time
+            angular_velocity = -(previous_odometry[2] - odometry[2]) / dt
+                    
+            # Compute the straight-line distance between the current and previous positions
+            delta_x = odometry[0] - previous_odometry[0]
+            delta_y = odometry[1] - previous_odometry[1]
+            distance_straight = np.sqrt(delta_x**2 + delta_y**2)
+
+            # Calculate the linear velocity considering curvature
+            # if angular_velocity > 1e-5:
+            #     radius = distance_straight / angular_velocity
+            #     linear_velocity = radius * angular_velocity
+            # else:
+            linear_velocity = distance_straight / dt
+            print("Previous move velocity:", linear_velocity)
+            previous_move = (linear_velocity, angular_velocity)
+            previous_time = time.time()
+            previous_odometry = odometry
+            
+            print("Odometry:", odometry)
+            print("Robot position:", env.robot.x, env.robot.y, env.robot.a)
+
+            measurements = env.get_measurement()
+            if len(env.obstacles) > previous_obstacles_size:
+                previous_obstacles_size = len(env.obstacles)
+                print("Resetting path")
+                path_execution.path = []
+                previous_time = 0
+
+            kalman_filter.process_measurement(previous_move, measurements, dt)
+            env.simulate_movement(previous_move, dt)
+
+            next_move = path_execution.get_current_move()
+
+
+            turtle.cmd_velocity(angular = next_move[1], linear = next_move[0])
+            rate.sleep()
+            
+            if (cv2.waitKey(1) & 0xFF == ord('q')) or turtle.is_shutting_down():
+                running = False
+        else:
+            measurements = env.get_measurement()
+            if len(env.obstacles) > previous_obstacles_size:
+                previous_obstacles_size = len(env.obstacles)
+                print("Resetting path")
+                path_execution.path = []
+                previous_time = 0
+                
+            if previous_time == 0:
+                previous_time = time.time()
+        
+            dt = time.time() - previous_time    
+            next_move = path_execution.get_current_move()
+            kalman_filter.process_measurement(next_move, measurements, dt)
+            env.simulate_movement(next_move, dt)
+            previous_time = time.time()
+            
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                running = False
 
         # rgb = turtle.get_rgb_image()
-        # cv2.imshow('RGB Camera', rgb)      
-          
-        # print(next_move)
-    
-            # print(env.path)
-        
-        kalman_filter.process_measurement(previous_move, measurements, dt)
-        env.simulate_movement(previous_move, dt)
-        
-            
-        # if counter > 100:
-        #     if previous_time == 0:
-        #         previous_time = time.time()
-        #     kalman_filter.process_measurement(next_move, measurements, time.time() - previous_time)
-        #     env.simulate_movement(next_move, max(0, time.time() - previous_time))
-            
-        measurements = env.get_measurement()
-        if len(env.obstacles) > previous_obstacles_size:
-            previous_obstacles_size = len(env.obstacles)
-            print("Resetting path")
-            path_execution.path = []
-            previous_time = 0
-            # print("---------------------------------")
-            # for obstacle in env.obstacles:
-                # print(obstacle)
-        # vis.clock.tick(120)
-        
-
-        next_move = path_execution.get_current_move()
-        turtle.cmd_velocity(angular = next_move[1], linear = next_move[0])
-        rate.sleep()
-        
-        # if cv2.waitKey(1) & 0xFF == ord('q'):
-        if (cv2.waitKey(1) & 0xFF == ord('q')) or turtle.is_shutting_down():
-            running = False
+        # cv2.imshow('RGB Camera', rgb)     
+         
         counter += 1
+        vis.clock.tick(120)
             
     # stats = pstats.Stats(pr)
     # stats.sort_stats(pstats.SortKey.TIME)

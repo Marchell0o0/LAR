@@ -13,8 +13,7 @@ class PathExecution:
         
         self.max_lookahead_distance = 0.3
         self.current_lookahead_distance = self.max_lookahead_distance
-        self.distance_allowence = 0.05
-        self.angle_allowence = np.deg2rad(2)
+
         self.path = []
         self.path_creation = path_creation
         self.lookahead_point = (0, 0)
@@ -45,7 +44,7 @@ class PathExecution:
         
             angle_difference = np.arctan2(dy, dx) - self.env.robot.a
             angle_difference = np.arctan2(np.sin(angle_difference), np.cos(angle_difference))
-            if dist < self.max_lookahead_distance and abs(angle_difference) < np.deg2rad(3):
+            if dist < self.max_lookahead_distance and abs(angle_difference) < self.env.robot.lookahead_point_distancing:
                 idx = i
                 self.current_lookahead_distance = dist
             
@@ -64,12 +63,24 @@ class PathExecution:
                 
         return closest_node.curvature
         
+    def get_to_desired_speed(self, speed):
+        if self.previous_move_time == 0:
+            self.previous_move_time = time.time()
+            
+        possible_change = (time.time() - self.previous_move_time) * self.env.robot.linear_acceleration
+        if self.current_speed < speed:
+            self.current_speed = min(self.current_speed + possible_change, speed)
+        else:
+            self.current_speed = max(self.current_speed - possible_change, speed)
+        self.previous_move_time = time.time()
+        
     def move_through_path(self):
-        if distance(self.env.robot, self.env.checkpoints[self.current_checkpoint_idx]) < self.distance_allowence:
+        if distance(self.env.robot, self.env.checkpoints[self.current_checkpoint_idx]) < self.env.robot.distance_allowence:
             angle_difference = self.env.robot.a - self.env.checkpoints[self.current_checkpoint_idx].a
-            if abs(angle_difference) > self.angle_allowence:
+            if abs(angle_difference) > self.env.robot.angle_allowence:
                 direction = -np.sign(angle_difference)
-                return (0, direction * self.env.robot.max_angular_speed)
+                self.get_to_desired_speed(0)
+                return (self.current_speed, direction * self.env.robot.max_angular_speed)
             
             self.current_checkpoint_idx += 1
             self.path = []
@@ -95,22 +106,19 @@ class PathExecution:
         lookahead_curvature = (2*x) / (self.current_lookahead_distance**2)
         distance_to_lookahead = np.sqrt(dx**2 + dy**2)
         
-        linear_speed_scale = (np.pi - abs(between_angle)) / \
-            np.pi * distance_to_lookahead / self.max_lookahead_distance
+        if abs(between_angle) > np.pi / 2:
+            linear_speed_scale = 0
+        else:
+            linear_speed_scale = ((np.pi / 2) - abs(between_angle)) / \
+                (np.pi / 2) * distance_to_lookahead / self.max_lookahead_distance
+            
         
         linear_speed = self.env.robot.linear_speed * linear_speed_scale
         linear_speed = max(self.env.robot.minimal_linear_speed, linear_speed)
-        if self.previous_move_time == 0:
-            self.previous_move_time = time.time()
-            
-        possible_change = (time.time() - self.previous_move_time) * self.env.robot.linear_acceleration
-        if self.current_speed < linear_speed:
-            self.current_speed = min(self.current_speed + possible_change, linear_speed)
-        else:
-            self.current_speed = max(self.current_speed - possible_change, linear_speed)
-        self.previous_move_time = time.time()
+
+        self.get_to_desired_speed(linear_speed)
         
-        if abs(between_angle) < np.deg2rad(90):
+        if abs(between_angle) < np.pi / 2:
             angular_speed = self.env.robot.max_angular_speed * lookahead_curvature
         else:
             angular_speed = self.env.robot.max_angular_speed
@@ -128,9 +136,11 @@ class PathExecution:
                 self.path = self.path_creation.create_path(self.env.robot, goal)
                 if not self.path:
                     print("Couldn't generate a path to the checkpoint")
-                    return (0, 0)
+                    self.get_to_desired_speed(0)
+                    return (self.current_speed, 0)
             else:
-                return (0, 0)
+                self.get_to_desired_speed(0)
+                return (self.current_speed, 0)
         # Here the path is guaranteed to be non-empty
         return self.move_through_path()
     
