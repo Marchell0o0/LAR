@@ -140,7 +140,7 @@ class ColorSettings:
             turtle.cmd_velocity(angular=math.pi/2)
             
             # Calculate the nearest multiple of π/6 to 'a'
-            nearest_multiple = round(a / (math.pi / 2)) * (math.pi / 2)
+            nearest_multiple = round(a / (math.pi / 6)) * (math.pi / 6)
 
             # Check if 'a' is within epsilon of the nearest multiple of π/6
             if abs(a - nearest_multiple) < epsilon:
