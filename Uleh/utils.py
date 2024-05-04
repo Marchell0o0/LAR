@@ -72,33 +72,19 @@ def clahe_preprocess(image):
 def is_within_range(value, range_bounds):
     return range_bounds[0] <= value <= range_bounds[1]
 
-def draw_rectangles(result_mask, original_image, rectangle):
-    rectangle_color = (int(rectangle.color), int(rectangle.color), int(rectangle.color))
-    # cv2.polylines(result_mask, [rectangle.approx], True, (0, 255, 0), 2)
-    cv2.drawContours(result_mask, [rectangle.box_points], 0, rectangle_color, cv2.FILLED)
-    cv2.drawContours(original_image, [rectangle.approx], 0, (0, 255, 255), 2)
-    cv2.putText(original_image,
-                f"Z1: {rectangle.distance:.2f} m",
-                # (int(rectangle.cX - rectangle.width * 0.5),
-                #  int(rectangle.cY - rectangle.height * 0.6)),
-                (int(rectangle.cX),
-                 int(rectangle.cY)),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
-    cv2.putText(original_image,
-                f"Z2: {rectangle.distance2:.2f} m",
-                (int(rectangle.cX),
-                 int(rectangle.cY - rectangle.height * 0.3)),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
-    cv2.putText(original_image,
-                f"Z3: {rectangle.distance3:.2f} m",
-                (int(rectangle.cX),
-                 int(rectangle.cY + rectangle.height * 0.3)),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
-    cv2.putText(original_image,
-                f"A: {rectangle.angle_pos:.2f} deg",
-                (int(rectangle.cX),
-                 int(rectangle.cY + rectangle.height * 0.5)),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (80, 0, 255), 2)
+def draw_rectangle(result_mask, original_image, rectangle):
+    cX, cY = rectangle.cX, rectangle.cY
+    height, width = rectangle.height, rectangle.width
+    box_points = rectangle.box_points
+    approx = rectangle.approx
+    distance = rectangle.distance
+    points = rectangle.major_points
+    angle_pos = rectangle.angle_pos
+    y = rectangle.y
+    color_bgr = (int(rectangle.color), int(rectangle.color), int(rectangle.color))
+    # cv2.polylines(result_mask, [approx], True, (0, 255, 0), 2)
+    cv2.drawContours(result_mask, [box_points], 0, color_bgr, cv2.FILLED)
+    cv2.drawContours(original_image, [approx], 0, (0, 255, 255), 2)
     rectg_name = "None"
     draw_color = (0, 0, 0)
     if rectangle.color == 150:
@@ -110,10 +96,35 @@ def draw_rectangles(result_mask, original_image, rectangle):
     elif rectangle.color == 250:
         rectg_name = "Red"
         draw_color = (0, 0, 255)
-    cv2.drawContours(original_image, [rectangle.box_points], 0, draw_color, 2)
-    cv2.putText(original_image, rectg_name, (rectangle.cX, rectangle.cY),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, draw_color, 2)
-    points = calculate_rectangle_points(rectangle)
+    cv2.drawContours(original_image, [box_points], 0, draw_color, 2)
+    # cv2.putText(original_image, rectg_name, (cX, cY),
+    #                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, draw_color, 2)
+    cv2.putText(original_image,
+                f"Z: {distance:.2f} m",
+                # (int(cX - width * 0.5),
+                #  int(cY - height * 0.6)),
+                (cX, cY),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
+    cv2.putText(original_image,
+                f"Y: {y:.2f} m",
+                # (int(cX - width * 0.5),
+                #  int(cY - height * 0.6)),
+                (cX, int(cY -height / 4)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
+    # cv2.putText(original_image,
+    #             f"Z2: {rectangle.distance2:.2f} m",
+    #             (int(cX),
+    #              int(cY - height * 0.3)),
+    #                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
+    # cv2.putText(original_image,
+    #             f"Z3: {rectangle.distance3:.2f} m",
+    #             (int(cX),
+    #              int(cY + height * 0.3)),
+    #                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
+    cv2.putText(original_image,
+                f"A: {np.degrees(angle_pos):.2f} deg",
+                (cX, int(cY + height * 0.3)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (80, 0, 255), 2)
     draw_points_on_image(original_image, points)
     return
 
@@ -148,7 +159,6 @@ def generate_HSV_image(image):
     # Convert the HSV image to RGB for displaying
     rgb_image = cv2.cvtColor(hsv_base, cv2.COLOR_HSV2RGB)
 
-    # Display using matplotlib
     plt.imshow(rgb_image, origin='lower', extent=[xbins.min(), xbins.max(), ybins.min(), ybins.max()])
     plt.title('HSV Color Space with Logarithmic Frequency Brightness')
     plt.xlabel('Hue')
@@ -179,6 +189,7 @@ def generate_general_HSV():
     plt.show()
     
 def calculate_angle(y, z):
+    # TODO: rewrite this function
     """
     Calculate the angle in radians and distance from the camera to a point.
     
@@ -189,29 +200,54 @@ def calculate_angle(y, z):
     Returns:
     (float, float): tuple of (angle in radians, distance)
     """
-    if z == 0 and z != None and y != None:
-        raise ValueError("Distance z cannot be zero.")
+    
+    if np.isnan(y) or np.isnan(z) or z == 0:
+        angle = 0
+        
+        # print("Angle (radians):", angle)
+        # print("Angle (degrees):", int(angle_deg))
+        
+        return angle
 
-    angle = np.arcsin(y / z)  # Result is in radians
+    ratio = y / z
+    
+    # Valid range for arcsin
+    if ratio < -1 or ratio > 1:
+        angle = 0
+        
+        # print("Angle (radians):", angle)
+        # print("Angle (degrees):", int(angle_deg))
+        
+        return angle
+
+    # TODO: remove angle_deg
+    angle = np.arcsin(ratio)  # Result is in radians
+    
+    if not isinstance(angle, float):
+        angle = 0
+        return angle
     
     # Convert to degrees for printing out
-    angle_deg = (360 * angle) / (2* math.pi)
+    # angle_deg = np.degrees(angle)
     
-    print("Angle (radians):", angle)
-    print("Angle (degrees):", int(angle_deg))
+    # print("Angle (radians):", angle)
+    # print("Angle (degrees):", int(angle_deg))
 
-    return angle, angle_deg
+    return angle
 
-def calculate_rectangle_points(rectangle):
-    cX, cY = rectangle.cX, rectangle.cY
-    width, height = rectangle.width, rectangle.height
-    # TODO: find out how to do it smarter
-    if rectangle.angle_rot > 45:
-        rectangle.angle_rot -= 90 
-        print(f"New angle_rot is {rectangle.angle_rot}")
-    angle_rad = math.radians(rectangle.angle_rot)  # Convert angle from degrees to radians
+def calculate_rectangle_points(cX, cY, height, width, angle_rot, epsilonX=4, epsilonY=3):
+    # TODO: find the way how to do it smarter
+    # was 
+    # if angle_rot < -45:
+    # angle_rot = -(angle_rot + 90) 
+    # TODO: maybe there is a better way to implement this 
+    if angle_rot < -45:
+        angle_rot = -(angle_rot + 90) 
+    elif angle_rot >= 45 and angle_rot <= 90:
+        angle_rot -= 90
+    #     print(f"New angle_rot is {angle_rot}")
+    angle_rot_rad = math.radians(angle_rot)  # Convert angle from degrees to radians
 
-    # Function to rotate a point around center by angle
     def rotate_point(x, y, cx, cy, angle):
         cos_theta, sin_theta = math.cos(angle), math.sin(angle)
         x, y = x - cx, y - cy
@@ -219,24 +255,36 @@ def calculate_rectangle_points(rectangle):
         ny = x * sin_theta + y * cos_theta + cy
         return int(nx), int(ny)
     
+    def adjust_points_to_image_bounds(points):
+        IMAGE_WIDTH = 640
+        IMAGE_HEIGHT = 480
+        for x, y in points:
+            if x < 0 or x >= IMAGE_WIDTH or y < 0 or y >= IMAGE_HEIGHT:
+                # print(f"Point {x, y} out of boundaries")
+                x = max(0, min(IMAGE_WIDTH - 1, x))
+                y = max(0, min(IMAGE_HEIGHT - 1, y))
+        return
+    
     # Center of the rectangle
     center = (cX, cY)
 
     # Corners without rotation
-    lt = (cX - width / 3, cY - height / 3)
-    rt = (cX + width / 3, cY - height / 3)
-    lb = (cX - width / 3, cY + height / 3)
-    rb = (cX + width / 3, cY + height / 3)
+    lt = (cX - width / epsilonX, cY - height / epsilonY)
+    rt = (cX + width / epsilonX, cY - height / epsilonY)
+    lb = (cX - width / epsilonX, cY + height / epsilonY)
+    rb = (cX + width / epsilonX, cY + height / epsilonY)
 
     # Midpoints without rotation
-    top = (cX, cY - height / 3)
-    bottom = (cX, cY + height / 3)
-    left = (cX - width / 3, cY)
-    right = (cX + width / 3, cY)
+    top = (cX, cY - height / epsilonY)
+    bottom = (cX, cY + height / epsilonY)
+    left = (cX - width / epsilonX, cY)
+    right = (cX + width / epsilonX, cY)
 
     # Rotate points
     points = [lt, rt, lb, rb, top, bottom, left, right]
-    rotated_points = [rotate_point(px, py, cX, cY, angle_rad) for (px, py) in points]
+    rotated_points = [rotate_point(px, py, cX, cY, angle_rot_rad) for (px, py) in points]
+         
+    adjust_points_to_image_bounds(rotated_points)        
 
     # Assign rotated points back to meaningful variable names
     (lt, rt, lb, rb, top, bottom, left, right) = rotated_points
@@ -246,12 +294,13 @@ def calculate_rectangle_points(rectangle):
     #     "corners": {"lt": lt, "rt": rt, "lb": lb, "rb": rb},
     #     "midpoints": {"top": top, "bottom": bottom, "left": left, "right": right}
     # }
+    
     return [center, top, bottom, left, right, lt, rt, lb, rb]
     
 def draw_points_on_image(image, points):
     color = (0, 255, 0)
     radius = 3  # Small radius for a dot-like appearance
-    thickness = 1  # Fill the circle
+    thickness = 1
     
     for point in points:
         cv2.circle(image, point, radius, color, thickness)
