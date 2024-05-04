@@ -247,4 +247,24 @@ class RectangleProcessor:
         # depth.generate_pc_image(pc_image)
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
-        return self.rectangles, masked_rectangles, image_rectangles
+        
+        # return self.rectangles, masked_rectangles, image_rectangles
+        
+        rectangles = []
+        
+        for rectangle in self.rectangles:
+            # R
+            if rectangle.color == 250:
+                rectg_color = 0
+            # B
+            elif rectangle.color == 150:
+                rectg_color = 1
+            # G
+            elif rectangle.color == 200:
+                rectg_color = 2
+            # Unknown color    
+            else:
+                rectg_color = 3
+            rectangles.append([rectangle.distance, rectangle.angle_pos, rectg_color])
+        
+        return rectangles, masked_rectangles, image_rectangles

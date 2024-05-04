@@ -136,7 +136,7 @@ class ColorSettings:
                     "saturation_thresholds": []
                     } for color_name in self.colors}
         
-        while abs(abs(a) - math.pi) >= epsilon and not turtle.is_shutting_down():
+        while abs(abs(a) - 2 * math.pi) >= epsilon and not turtle.is_shutting_down():
             turtle.cmd_velocity(angular=math.pi/6)
             
             # Calculate the nearest multiple of π/6 to 'a'
