@@ -21,8 +21,6 @@ def main:
                                             color_settings)
     detected_rectgs, masked_rectgs, image_rectg  = rectg_processor.process_image()
 
-    (r, phi, color) 0red  1blue 2green
-
 # def main():
 #     turtle = Turtlebot(rgb = True, depth = True, pc = True)
     
