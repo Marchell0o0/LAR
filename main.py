@@ -65,7 +65,7 @@ def main():
     
     env = Environment(Robot(0, 0, 0), Robot(0, 0, 0),
                       [Checkpoint(2, 0, 0)],
-                      set(), set())   
+                      [], set())   
      
     # env = Environment(Robot(0, 0, np.deg2rad(-180)),
     #                   [Checkpoint(2, 0, 0),
