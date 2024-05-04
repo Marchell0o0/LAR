@@ -91,43 +91,24 @@ class KalmanFilter:
     def measurement_update(self, zs):
         for z in zs:
             dist, phi, color = z
-            # if isinstance(dist, np.ndarray):
-            #     dist = dist.item()
-            # if isinstance(phi, np.ndarray):
-            #     phi = phi.item()
-            # if isinstance(color, np.ndarray):
-            #     color = color.item()
             
             measured_x = self.mu[0] + dist * np.cos(phi + self.mu[2])
             measured_y = self.mu[1] + dist * np.sin(phi + self.mu[2])
             measured_obstacle = Obstacle(measured_x, measured_y, color)
-            # print("Measured:")
-            # print(measured_obstacle)
             # Find the closest obstacle based on Mahalanobis distance
             closest_idx = -1
             min_distance = float('inf')
-            # print("Comparing mahalanobis distances")
-            # print("For this obstacle", measured_obstacle)
             for idx, obstacle in enumerate(self.env.obstacles):
-                # print(obstacle)
                 mahalanobis_distance = self.compute_mahalanobis_distance(z, idx * 2 + 3)
-                # print("Distance from this obstacle:", mahalanobis_distance)
                 if mahalanobis_distance < self.alpha and mahalanobis_distance < min_distance:
                     min_distance = mahalanobis_distance
                     closest_idx = idx * 2 + 3
-                # print()
                     
             added_new = False
             # Expand the state vector and covariance matrix if necessary
             if closest_idx == -1:
                 added_new = True
                 distance_to_robot = np.sqrt((measured_obstacle.x - self.env.robot.x)**2 + (measured_obstacle.y - self.env.robot.y)**2)
-                # if  distance_to_robot < self.env.robot.max_detection_range + 0.2:
-                # print("---------------Adding a new obstacle--------------")
-                # if min_distance > 100:
-                    # print("That's a big distance")
-                # print(measured_obstacle)
-                # No existing obstacle was within the threshold, create a new one
                 closest_idx = self.mu.shape[0]
                 new_size = closest_idx + 2
                 
@@ -148,19 +129,12 @@ class KalmanFilter:
                 self.mu[closest_idx] = measured_x
                 self.mu[closest_idx + 1] = measured_y
                     # self.mu[closest_idx + 2] = color
-                    # print("list of current obstacles")
-                    # for obstacle in self.env.obstacles:
-                        # print(obstacle)
-                # else:
-                    # print("Shits happening")
                 
-            # print("Obstacle  idx:", closest_idx)
             # Update the state and covariance matrices
             delta = np.array([[self.mu[closest_idx] - self.env.robot.x],
                               [self.mu[closest_idx + 1] - self.env.robot.y]])
             q = np.linalg.norm(delta)**2
-            # min_q = 1e-6
-            # q = max(q, min_q)
+
             sqrt_q = np.sqrt(q)
             angle = np.arctan2(delta[1, 0], delta[0, 0]) - self.env.robot.a
             angle = np.arctan2(np.sin(angle), np.cos(angle))
@@ -181,14 +155,6 @@ class KalmanFilter:
             self.mu += K @ z_delta
             self.mu[2] = np.arctan2(np.sin(self.mu[2]), np.cos(self.mu[2]))                              
             self.sigma = (np.eye(self.sigma.shape[0]) - K @ H) @ self.sigma
-            # if added_new:
-            #     print(f"Z delta: {z_delta}")
-            #     print(f"delta: {delta}")
-            #     print(f"q: {q}")
-            #     print(f"H: {H}")
-            #     print(f"K: {K}")
-            #     print("Current estimate of newly added", self.mu[closest_idx], self.mu[closest_idx + 1])
-            # print(self.mu)
                 
     def calculate_jacobian(self, delta, q, idx):
         sqrt_q = np.sqrt(q)
@@ -218,20 +184,9 @@ class KalmanFilter:
             # obstacle.color = self.mu[mu_idx + 2]
             
     def process_measurement(self, u, z, dt):
-        # print("Processing move:", u)
         self.prediction_update(u, dt)
-        
-        # print("Robot state post-prediction:", self.env.robot.x, self.env.robot.y, self.env.robot.a)
-        # if z:
-            # print("Processing measurement:", z)
         self.measurement_update(z)
         self.update_environment()
-        # print("Robot state post-correction:", self.env.robot.x, self.env.robot.y, self.env.robot.a)
-
-
-
-
-
 
 
 # import numpy as np

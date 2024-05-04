@@ -11,6 +11,10 @@ from path_execution import PathExecution
 from path_creation import PathCreation
 from kalman import KalmanFilter
 
+from Uleh.rectangle import RectangleProcessor
+from Uleh.color import ColorSettings
+
+
 # Running pygame without the display to resolve a dependency with OpenGL
 import pygame 
 import os
@@ -18,14 +22,15 @@ os.environ['SDL_VIDEODRIVER'] = 'dummy'
 
 def initialize_turtle():
     # turtle = Turtlebot(rgb = True, depth = True, pc = True)
-    
-    turtle = Turtlebot()
 
-    # turtle.wait_for_rgb_image()
-    # print('Rgb image received')
+    # turtle = Turtlebot()
+    turtle = Turtlebot(rgb = True, pc = True)
+
+    turtle.wait_for_rgb_image()
+    print('Rgb image received')
     
-    # turtle.wait_for_point_cloud()
-    # print('Point cloud received')
+    turtle.wait_for_point_cloud()
+    print('Point cloud received')
     
     # turtle.wait_for_depth_image()
     # print("Depth image received")
@@ -113,6 +118,8 @@ def main():
     if turtlebot:
         from robolab_turtlebot import Turtlebot, get_time, Rate
         turtle, rate = initialize_turtle()
+        color_settings = ColorSettings()
+        color_settings.calibrate_color(turtle)
     
     
     running = True
