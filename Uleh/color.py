@@ -137,23 +137,23 @@ class ColorSettings:
                     } for color_name in self.colors}
         
         while abs(abs(a) - math.pi) >= epsilon and not turtle.is_shutting_down():
-            turtle.cmd_velocity(angular=math.pi/6)
+            turtle.cmd_velocity(angular=math.pi/2)
             
             # Calculate the nearest multiple of π/6 to 'a'
-            nearest_multiple = round(a / (math.pi / 6)) * (math.pi / 6)
+            nearest_multiple = round(a / (math.pi / 2)) * (math.pi / 2)
 
             # Check if 'a' is within epsilon of the nearest multiple of π/6
             if abs(a - nearest_multiple) < epsilon:
                 if nearest_multiple != last_triggered_multiple:
                     print("Triggered at a multiple of π/6:", a)
                     turtle.cmd_velocity(angular=0)
-                    time.sleep(0.5)
+                    time.sleep(0.3)
                     
                     # ------Function to call------
                     self.save_image_values(turtle, color_data)
                     # ---------------------------
                     
-                    turtle.cmd_velocity(angular=math.pi/6)
+                    turtle.cmd_velocity(angular=math.pi/2)
                     last_triggered_multiple = nearest_multiple
 
             rate.sleep()
