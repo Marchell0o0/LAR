@@ -265,6 +265,6 @@ class RectangleProcessor:
             # Unknown color    
             else:
                 rectg_color = 3
-            rectangles.append([rectangle.distance, rectangle.angle_pos, rectg_color])
+            rectangles.append((rectangle.distance, rectangle.angle_pos, rectg_color))
         
         return rectangles, masked_rectangles, image_rectangles
