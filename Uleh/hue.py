@@ -1,7 +1,7 @@
 import cv2 # type: ignore
 import numpy as np # type: ignore
 
-from utils import smooth_histogram_with_gaussian
+from Uleh.utils import smooth_histogram_with_gaussian
 
 def calculate_hue_average(hist_hue, color_range):
     if color_range[0] <= color_range[1]:

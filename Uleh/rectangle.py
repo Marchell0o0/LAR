@@ -2,9 +2,9 @@ import cv2 # type: ignore
 import numpy as np # type: ignore
 from typing import List, Type
 
-import utils
-import color
-import depth
+import Uleh.utils
+import Uleh.color
+import Uleh.depth
 
 class Rectangle:
     def __init__(self,
@@ -80,7 +80,7 @@ class RectangleProcessor:
                 aspect_ratio = float(height/width)
             else:
                 aspect_ratio = 0
-            if area > min_area and utils.is_within_range(aspect_ratio,
+            if area > min_area and Uleh.utils.is_within_range(aspect_ratio,
                                                         aspect_ratio_range):
                 x = stats[label, cv2.CC_STAT_LEFT]
                 y = stats[label, cv2.CC_STAT_TOP]
@@ -160,7 +160,7 @@ class RectangleProcessor:
                 continue
             
             if (area > min_area and
-                utils.is_within_range(aspect_ratio, aspect_ratio_range)):
+                Uleh.utils.is_within_range(aspect_ratio, aspect_ratio_range)):
                 # TODO: remove almost_rectg_counter
                 # almost_rectg_counter += 1
                 if num_vertices <= min_vertices:
@@ -177,9 +177,9 @@ class RectangleProcessor:
                     
                     y_coords = []
                     distances = []
-                    points = utils.calculate_rectangle_points(cX, cY, height, width, angle_rot)
+                    points = Uleh.utils.calculate_rectangle_points(cX, cY, height, width, angle_rot)
                     for point in points[:3]:
-                        rectangle_y, rectangle_distance = depth.find_point_pc_coords(self.pc_image,
+                        rectangle_y, rectangle_distance = Uleh.depth.find_point_pc_coords(self.pc_image,
                                                                     point[0],
                                                                     point[1]
                                                                     )[1:3]
@@ -192,7 +192,7 @@ class RectangleProcessor:
                     rectangle_y = np.mean(y_coords)
                     rectangle_distance = np.mean(distances)
                     
-                    rectangle_angle = utils.calculate_angle(rectangle_y, rectangle_distance)
+                    rectangle_angle = Uleh.utils.calculate_angle(rectangle_y, rectangle_distance)
                     
                     rectangle = Rectangle(
                                         area,
@@ -212,7 +212,7 @@ class RectangleProcessor:
                                         )
                     self.rectangles.append(rectangle)
                     
-                    utils.draw_rectangle(result_mask, original_image, rectangle)
+                    Uleh.utils.draw_rectangle(result_mask, original_image, rectangle)
                     
                     print(rectangle)
         
@@ -226,12 +226,12 @@ class RectangleProcessor:
         colors = ["blue", "green", "red"]
         result_masked = {}
         for color_name in colors:
-            result_masked[color_name] = color.create_mask(self.image,
+            result_masked[color_name] = Uleh.color.create_mask(self.image,
                                                         self.color_settings,
                                                         color_name,
                                                         self.color_settings.calib_values)
         
-        combined_mask = color.merge_masks(result_masked[colors[0]],
+        combined_mask = Uleh.color.merge_masks(result_masked[colors[0]],
                                     result_masked[colors[1]],
                                     result_masked[colors[2]]
                                     )

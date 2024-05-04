@@ -4,9 +4,9 @@ import numpy as np # type: ignore
 import math
 import time
 
-import utils
-from hue import calculate_hue_params
-from saturation import calculate_saturation_threshold, calculate_saturation_threshold_green
+import Uleh.utils
+from Uleh.hue import calculate_hue_params
+from Uleh.saturation import calculate_saturation_threshold, calculate_saturation_threshold_green
 from robolab_turtlebot import Rate
 
 class ColorSettings:
@@ -168,13 +168,13 @@ class ColorSettings:
     def assign_detected_color(self, rectg, image):
         cX, cY = rectg.cX, rectg.cY
         height, width, angle_rot = rectg.height, rectg.width, rectg.angle_rot
-        points = utils.calculate_rectangle_points(cX, cY, height, width, angle_rot)
+        points = Uleh.utils.calculate_rectangle_points(cX, cY, height, width, angle_rot)
         hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
         hue_channel, saturation_channel, _ = cv2.split(hsv)
         
         hue_channel = cv2.GaussianBlur(hue_channel, (7, 7), 0)
         
-        color_name = utils.color_value_to_str(rectg.color)
+        color_name = Uleh.utils.color_value_to_str(rectg.color)
         color_deviation = getattr(self, f"{color_name}_deviation")
         # print(f"Hue value in center for {color_name} is: {hue_channel[points[7][1], points[7][0]]}")
         # my_point = (613, 449)
@@ -249,7 +249,7 @@ class ColorSettings:
                     detected_rectgs, _, _  = rectg_processor.process_image()
                     
                     for rectg in detected_rectgs:
-                        color_name = utils.color_value_to_str(rectg.color)
+                        color_name = Uleh.utils.color_value_to_str(rectg.color)
                         # To continue both blue and red color must be reassigned
                         if ((color_name == "blue" or color_name == "red") 
                             and not self.calib_values[color_name]["color_reassigned"]):
@@ -313,9 +313,9 @@ def create_mask(image, color_settings, color_name, color_params):
 # TODO: create a class for color_value assignment
 def merge_masks(blue_mask, green_mask, red_mask):
     combined_mask = np.zeros_like(blue_mask)
-    combined_mask[(blue_mask == 255) & (combined_mask == 0)] = utils.str_to_color_value("blue")
-    combined_mask[(green_mask == 255) & (combined_mask == 0)] = utils.str_to_color_value("green")
-    combined_mask[red_mask == 255] = utils.str_to_color_value("red")
+    combined_mask[(blue_mask == 255) & (combined_mask == 0)] = Uleh.utils.str_to_color_value("blue")
+    combined_mask[(green_mask == 255) & (combined_mask == 0)] = Uleh.utils.str_to_color_value("green")
+    combined_mask[red_mask == 255] = Uleh.utils.str_to_color_value("red")
     
     # Debugging
     # cv2.imshow('Combined mask', combined_mask)

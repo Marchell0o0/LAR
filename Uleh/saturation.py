@@ -2,7 +2,7 @@ import cv2 # type: ignore
 import numpy as np # type: ignore
 # from scipy.signal import find_peaks # type: ignore
 
-from utils import smooth_histogram_with_gaussian
+from Uleh.utils import smooth_histogram_with_gaussian
 
 # use this function for a blue and red obstacle
 def calculate_saturation_threshold(image, saturation_range, color_name):

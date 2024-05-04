@@ -5,7 +5,6 @@ from scipy.ndimage import gaussian_filter1d # type: ignore
 import math
 
 def morphology_preprocessing(masked_hue):
-
     # Create a rectangular kernel for morphological operations
     kernel_size = 2
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_size, kernel_size))

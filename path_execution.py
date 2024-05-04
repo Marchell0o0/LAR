@@ -25,8 +25,8 @@ class PathExecution:
         for node in self.path:
             for obstacle in self.env.obstacles:
                 allowed_radius = obstacle.radius + self.env.robot.radius + self.env.robot.obstacle_clearence
-            if distance(node, obstacle) < allowed_radius:
-                self.path = []
+                if distance(node, obstacle) < allowed_radius:
+                    self.path = []
 
     def update_lookahead_point(self):
         min_dist = float('inf')

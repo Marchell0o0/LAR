@@ -14,6 +14,8 @@ from kalman import KalmanFilter
 from Uleh.rectangle import RectangleProcessor
 from Uleh.color import ColorSettings
 
+from robolab_turtlebot import Turtlebot, get_time, Rate
+
 
 # Running pygame without the display to resolve a dependency with OpenGL
 import pygame 
@@ -61,9 +63,9 @@ def main():
     #                      Checkpoint(0, 0, 90)],
     #                     set())
     
-    # env = Environment(Robot(0, 0, 0), Robot(0, 0, 0),
-    #                   [Checkpoint(2, 0, 0)],
-    #                   set(), set())   
+    env = Environment(Robot(0, 0, 0), Robot(0, 0, 0),
+                      [Checkpoint(2, 0, 0)],
+                      set(), set())   
      
     # env = Environment(Robot(0, 0, np.deg2rad(-180)),
     #                   [Checkpoint(2, 0, 0),
@@ -72,17 +74,17 @@ def main():
     #                    Obstacle(1, -0.2, "blue")], set())  
      
 
-    env = Environment(Robot(-0.3, 0, 0), Robot(-0.3, 0, 0),
-                        [Checkpoint(1, 0, 0),
-                         Checkpoint(2, 1, np.pi/4),
-                         Checkpoint(1, 0, -np.pi)],
-                        [],
-                        [Obstacle(0.50, -0.20, 0),
-                         Obstacle(0.50, 0.20, 1),
-                         Obstacle(0.50, -0.50, 2),
-                         Obstacle(1.5, 0.50, 1),
-                         Obstacle(1.5, 0.75, 2),
-                         ])
+    # env = Environment(Robot(-0.3, 0, 0), Robot(-0.3, 0, 0),
+    #                     [Checkpoint(1, 0, 0),
+    #                      Checkpoint(2, 1, np.pi/4),
+    #                      Checkpoint(1, 0, -np.pi)],
+    #                     [],
+    #                     [Obstacle(0.50, -0.20, 0),
+    #                      Obstacle(0.50, 0.20, 1),
+    #                      Obstacle(0.50, -0.50, 2),
+    #                      Obstacle(1.5, 0.50, 1),
+    #                      Obstacle(1.5, 0.75, 2),
+    #                      ])
     
     # env = Environment(Robot(0, 0, 0), 
     #                     [Checkpoint(1, 0, 0)],
@@ -116,7 +118,6 @@ def main():
         vis = RobotVisualization(env, path_execution, kalman_filter, screen_dimensions)
     
     if turtlebot:
-        from robolab_turtlebot import Turtlebot, get_time, Rate
         turtle, rate = initialize_turtle()
         color_settings = ColorSettings()
         color_settings.calibrate_color(turtle)
@@ -143,12 +144,12 @@ def main():
             if previous_time == 0:
                 previous_time = time.time()
         
-            dt = time.time() - previous_time
-            angular_velocity = -(previous_odometry[2] - odometry[2]) / dt
                     
+            odometry = turtle.get_odometry()
                     
             # TODO: Check if should do that, or maybe get_time() is right        
-            odometry = turtle.get_odometry()
+            dt = time.time() - previous_time
+            angular_velocity = -(previous_odometry[2] - odometry[2]) / dt
             delta_x = odometry[0] - previous_odometry[0]
             delta_y = odometry[1] - previous_odometry[1]
             distance_straight = np.sqrt(delta_x**2 + delta_y**2)
@@ -168,10 +169,22 @@ def main():
             print("Robot position:", env.robot.x, env.robot.y, env.robot.a)
 
             kalman_filter.process_measurement(previous_move, measurements, dt)
-            env.simulate_movement(previous_move, dt)
+            # env.simulate_movement(previous_move, dt)
             path_execution.update_path()
                 
-            measurements = env.get_measurement()
+            # measurements = env.get_measurement()
+
+            image = turtle.get_rgb_image()
+            pc_image = turtle.get_point_cloud()
+
+            rectg_processor = RectangleProcessor(image,
+                                            pc_image,
+                                            color_settings)
+            detected_rectgs, masked_rectgs, image_rectg  = rectg_processor.process_image()
+
+            measurements = detected_rectgs
+
+            cv2.imshow('Camera view', image_rectg)
 
             next_move = path_execution.get_current_move()
             turtle.cmd_velocity(angular = next_move[1], linear = next_move[0])
@@ -200,7 +213,8 @@ def main():
         # cv2.imshow('RGB Camera', rgb)     
          
         counter += 1
-        vis.clock.tick(120)
+        if visualization:
+            vis.clock.tick(120)
             
     # stats = pstats.Stats(pr)
     # stats.sort_stats(pstats.SortKey.TIME)
