@@ -192,6 +192,10 @@ class RectangleProcessor:
                     rectangle_y = np.mean(y_coords)
                     rectangle_distance = np.mean(distances)
                     
+                    if np.isnan(rectangle_distance):
+                        # TODO: rewrite hard code
+                        rectangle_distance = 5
+                        
                     rectangle_angle = Uleh.utils.calculate_angle(rectangle_y, rectangle_distance)
                     
                     rectangle = Rectangle(

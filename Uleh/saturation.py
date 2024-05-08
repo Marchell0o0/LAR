@@ -16,7 +16,7 @@ def calculate_saturation_threshold(image, saturation_range, color_name):
     
     # Find an adaptive threshold for saturation
     # Use this threshold for blue and red obstacle
-    sat_threshold = np.argmin(hist_sat[saturation_range[0]:saturation_range[1]]) + saturation_range[0]
+    sat_threshold = np.argmin(hist_sat_smoothed[saturation_range[0]:saturation_range[1]]) + saturation_range[0]
     # sat_threshold = calculate_sat_average(hist_sat_smoothed, saturation_range)
       
     # Debugging:

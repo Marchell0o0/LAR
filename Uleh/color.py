@@ -94,18 +94,19 @@ class ColorSettings:
         
         image = turtle.get_rgb_image()
         
-        for color_name in self.colors:
-            
-            hue_value, hue_deviation, saturation_threshold = self.calculate_color_thresholds(image, color_name)
-            
-            if not np.isnan(hue_value) and not np.isnan(hue_deviation) and not np.isnan(saturation_threshold):
-                color_data[color_name]["hue_values"].append(hue_value)
-                color_data[color_name]["hue_deviations"].append(hue_deviation)
-                color_data[color_name]["saturation_thresholds"].append(saturation_threshold)
+        
+        if image is not None:
+            for color_name in self.colors:
+                
+                    hue_value, hue_deviation, saturation_threshold = self.calculate_color_thresholds(image, color_name)
+                    
+                    if not np.isnan(hue_value) and not np.isnan(hue_deviation) and not np.isnan(saturation_threshold):
+                        color_data[color_name]["hue_values"].append(hue_value)
+                        color_data[color_name]["hue_deviations"].append(hue_deviation)
+                        color_data[color_name]["saturation_thresholds"].append(saturation_threshold)
         return
 
     def calculate_color_averages(self, color_data):
-        # Calculate averages
         for color_name in self.colors:
             avg_hue = np.mean(color_data[color_name]["hue_values"])
             avg_deviation = np.mean(color_data[color_name]["hue_deviations"])
@@ -116,7 +117,7 @@ class ColorSettings:
                 self.calib_values[color_name]["sat_avg"] = int(avg_saturation)
                 print(f"Average for {color_name}: Hue={int(avg_hue)}, Deviation={int(avg_deviation)}, Saturation Threshold={int(avg_saturation)}")
             else:
-                print("Unable to calibrate the camera: avg_hue or avg_deviation or avg_saturation in NaN")
+                raise ValueError("Unable to calibrate the camera: either avg_hue or avg_deviation or avg_saturation in NaN")
         return
     # USE FOR A ROBOT
     def calibrate_color(self, turtle):
