@@ -218,10 +218,10 @@ class RectangleProcessor:
                     
                     Uleh.utils.draw_rectangle(result_mask, original_image, rectangle)
                     
-                    print(rectangle)
+                    # print(rectangle)
         
         # print(f"ALMOST RECTANGLES: {almost_rectg_counter}")        
-        print("Number of rectangles: ", len(self.rectangles))
+        # print("Number of rectangles: ", len(self.rectangles))
         
         return self.rectangles, result_mask, original_image
     

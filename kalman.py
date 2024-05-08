@@ -4,9 +4,9 @@ from environment import Obstacle
 class KalmanFilter:
     def __init__(self, env):
         self.env = env
-        self.sigma = 0.01*np.eye(3, dtype=float)
+        self.sigma = 1*np.eye(3, dtype=float)
         self.R = np.diag([0.0001, 0.0001, 0.001]) # sigma x, y, a
-        self.Q_obstacles = np.diag([0.1, np.deg2rad(2), 0.001]) # sigma r, phi, color
+        self.Q_obstacles = np.diag([0.15, np.deg2rad(5), 0.001]) # sigma r, phi, color
         self.Q_odometry = np.diag([0.001, 0.001, 0.001]) # sigma x, y, theta
         
         # acceptable mahalanobis distance

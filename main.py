@@ -20,6 +20,8 @@ import os
 os.environ['SDL_VIDEODRIVER'] = 'dummy'
 
 def initialize_turtle():
+    from robolab_turtlebot import Turtlebot, get_time, Rate
+
     # turtle = Turtlebot(rgb = True, depth = True, pc = True)
 
     # turtle = Turtlebot()
@@ -71,18 +73,30 @@ def main():
     #                    Obstacle(1, -0.2, "blue")], set())  
      
 
-    env = Environment(Robot(0, 0, 0), Robot(0, 0, 0),
-                        [Checkpoint(1, 0, 0),
-                         Checkpoint(2, 1, np.pi/4),
-                         Checkpoint(1, 0, -np.pi)],
-                        [],
-                        [Obstacle(0.50, -0.20, 0),
-                         Obstacle(0.50, 0.20, 1),
-                         Obstacle(0.50, -0.50, 2),
-                         Obstacle(1.5, 0.50, 1),
-                         Obstacle(1.5, 0.75, 2),
-                         ])
+    # env = Environment(Robot(0, 0, 0), Robot(0, 0, 0),
+    #                     [Checkpoint(1, 0, 0),
+    #                      Checkpoint(2, 1, np.pi/4),
+    #                      Checkpoint(1, 0, -np.pi)],
+    #                     [],
+    #                     [Obstacle(0.50, -0.20, 0),
+    #                      Obstacle(0.50, 0.20, 1),
+    #                      Obstacle(0.50, -0.50, 2),
+    #                      Obstacle(1.5, 0.50, 1),
+    #                      Obstacle(1.5, 0.75, 2),
+    #                      ])
     
+    env = Environment(Robot(0, 0, 0), Robot(0, 0, 0),
+                        [Checkpoint(1.3, 0, 0),
+                         Checkpoint(2.3, 1, np.pi/4),
+                         Checkpoint(1.3, 0, -np.pi)],
+                         [],
+                        [Obstacle(0.80, -0.20, 0),
+                         Obstacle(0.80, 0.20, 1),
+                         Obstacle(0.80, -0.50, 2),
+                         Obstacle(1.8, 0.50, 1),
+                         Obstacle(1.8, 0.75, 2),
+                         ])
+
     # env = Environment(Robot(0, 0, 0), 
     #                     [Checkpoint(1, 0, 0)],
     #                     [],
@@ -108,14 +122,13 @@ def main():
     path_creation = PathCreation(env)
     path_execution = PathExecution(env, path_creation)
     kalman_filter = KalmanFilter(env)
-    
+
     if visualization:
-        screen_dimensions = (2160, 3840)
-        # screen_dimensions = (1440, 900)
+        # screen_dimensions = (2160, 3840)
+        screen_dimensions = (1440, 900)
         vis = RobotVisualization(env, path_execution, kalman_filter, screen_dimensions)
     
     if turtlebot:
-        from robolab_turtlebot import Turtlebot, get_time, Rate
         
         turtle, rate = initialize_turtle()
         color_settings = ColorSettings()
@@ -125,18 +138,18 @@ def main():
     running = True
     counter = 0
     previous_time = 0
-    previous_obstacles_size = 0
-    previous_odometry = (0, 0, 0)
+    # previous_obstacles_size = 0
+    # previous_odometry = (0, 0, 0)
     obstacle_measurements = []
-    print("Starting main loop")
     next_move = (0, 0)
+    print("Starting main loop")
     # with cProfile.Profile() as pr:
     while running:   
         if visualization:       
             # if counter % 10 == 0:
             # print("Current obstacles before drawing")
             # for obstacle in env.obstacles:
-                # print(obstacle)
+            # print(obstacle)
             vis.screen.fill((0, 0, 0))
             vis.draw_everything()
 
@@ -147,55 +160,99 @@ def main():
             if (cv2.waitKey(1) & 0xFF == ord('q')) or turtle.is_shutting_down():
                 running = False
                 
+
+            # if next_move[0] == 0 and next_move[1] == 0:
+            #     print("Stopped, making a measurement")
+            #     time.sleep(0.5)
+            #     image = turtle.get_rgb_image()
+            #     pc_image = turtle.get_point_cloud()
+
+            #     rectg_processor = RectangleProcessor(image,
+            #                                     pc_image,
+            #                                     color_settings)
+            #     detected_rectgs, masked_rectgs, image_rectg  = rectg_processor.process_image()
+            #     obstacle_measurements = detected_rectgs
+            # else:
+            #     obstacle_measurements = []
+            if counter % 10 == 0:
+                image = turtle.get_rgb_image()
+                pc_image = turtle.get_point_cloud()
+                rectg_processor = RectangleProcessor(image,
+                                                    pc_image,
+                                                    color_settings)
+                detected_rectgs, masked_rectgs, image_rectg  = rectg_processor.process_image()
+                print("Saving a photo")
+                cv2.imwrite(f"camera/camera_pov_{counter}.png", image_rectg)
+                print("SUCCESS")
+
             if previous_time == 0:
                 previous_time = time.time()
-        
-                    
-            odometry = turtle.get_odometry()
-                    
-            # TODO: Check if should do that, or maybe get_time() is right        
             dt = time.time() - previous_time
-            angular_velocity = -(previous_odometry[2] - odometry[2]) / dt
-            delta_x = odometry[0] - previous_odometry[0]
-            delta_y = odometry[1] - previous_odometry[1]
-            distance_straight = np.sqrt(delta_x**2 + delta_y**2)
 
-            # Calculate the linear velocity considering curvature
-            # if angular_velocity > 1e-5:
-            #     radius = distance_straight / angular_velocity
-            #     linear_velocity = radius * angular_velocity
-            # else:
-            linear_velocity = distance_straight / dt
-            print("Previous move velocity:", linear_velocity)
-            previous_move = (linear_velocity, angular_velocity)
-            previous_time = time.time()
-            previous_odometry = odometry
-            
-            print("Odometry:", odometry)
-            print("Robot position:", env.robot.x, env.robot.y, env.robot.a)
+            odometry_measurement = turtle.get_odometry()
 
-            kalman_filter.process_measurement(previous_move, obstacle_measurements, dt)
-            # env.simulate_movement(previous_move, dt)
+            env.real_robot.x = odometry_measurement[0]
+            env.real_robot.y = odometry_measurement[1]
+            env.real_robot.a = odometry_measurement[2]
+
+            if counter % 10 == 0:
+                obstacle_measurements = env.get_measurement()
+            else:
+                obstacle_measurements = []
+
+
             path_execution.update_path()
-                
-            # obstacle_measurements = env.get_measurement()
-
-            image = turtle.get_rgb_image()
-            pc_image = turtle.get_point_cloud()
-
-            rectg_processor = RectangleProcessor(image,
-                                            pc_image,
-                                            color_settings)
-            detected_rectgs, masked_rectgs, image_rectg  = rectg_processor.process_image()
-
-            obstacle_measurements = detected_rectgs
-            print(obstacle_measurements)
-
-            cv2.imshow('Camera view', image_rectg)
-
             next_move = path_execution.get_current_move()
+            kalman_filter.process_measurement(next_move, obstacle_measurements, odometry_measurement, dt)
+            
             turtle.cmd_velocity(angular = next_move[1], linear = next_move[0])
+            previous_time = time.time()
+            
             rate.sleep()
+
+            # odometry = turtle.get_odometry()
+                    
+            # dt = time.time() - previous_time
+            # angular_velocity = -(previous_odometry[2] - odometry[2]) / dt
+            # delta_x = odometry[0] - previous_odometry[0]
+            # delta_y = odometry[1] - previous_odometry[1]
+            # distance_straight = np.sqrt(delta_x**2 + delta_y**2)
+
+            # # Calculate the linear velocity considering curvature
+            # # if angular_velocity > 1e-5:
+            # #     radius = distance_straight / angular_velocity
+            # #     linear_velocity = radius * angular_velocity
+            # # else:
+            # linear_velocity = distance_straight / dt
+            # print("Previous move velocity:", linear_velocity)
+            # previous_move = (linear_velocity, angular_velocity)
+            # previous_time = time.time()
+            # previous_odometry = odometry
+            
+            # print("Odometry:", odometry)
+            # print("Robot position:", env.robot.x, env.robot.y, env.robot.a)
+
+            # # env.simulate_movement(previous_move, dt)
+            # path_execution.update_path()
+                
+            # # obstacle_measurements = env.get_measurement()
+
+            # image = turtle.get_rgb_image()
+            # pc_image = turtle.get_point_cloud()
+
+            # rectg_processor = RectangleProcessor(image,
+            #                                 pc_image,
+            #                                 color_settings)
+            # detected_rectgs, masked_rectgs, image_rectg  = rectg_processor.process_image()
+
+            # obstacle_measurements = detected_rectgs
+            # print(obstacle_measurements)
+
+            # cv2.imshow('Camera view', image_rectg)
+
+            # next_move = path_execution.get_current_move()
+            # turtle.cmd_velocity(angular = next_move[1], linear = next_move[0])
+            # rate.sleep()
             
             
         else:
@@ -206,8 +263,8 @@ def main():
                 previous_time = time.time()
             dt = time.time() - previous_time
             
-            if dt < 0.01:
-                continue
+            # if dt < 0.01:
+                # continue
             
             if counter % 10 == 0:
                 obstacle_measurements = env.get_measurement()
