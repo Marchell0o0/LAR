@@ -13,8 +13,8 @@ class RobotVisualization:
         
         pygame.init()
         # self.base_size = (3840, 3840) # 4K square
-        # self.base_size = (1080,1080)
-        self.base_size = (500, 500)
+        self.base_size = (1080,1080)
+        # self.base_size = (500, 500)
         self.screen = pygame.display.set_mode(self.base_size)
         self.clock = pygame.time.Clock()
 
@@ -71,7 +71,7 @@ class RobotVisualization:
             self.draw_checkpoint(checkpoint)
 
         self.draw_robot(self.env.robot)
-        # self.draw_robot(self.env.real_robot, True)
+        self.draw_robot(self.env.real_robot, True)
         
     def draw_path(self, path):
         updated_rects = []  # List to store rectangles that need to be updated
@@ -237,9 +237,8 @@ class RobotVisualization:
         pygame.draw.circle(self.screen, color, obstacle_pos, obstacle_radius_pixels)
 
         if not hidden:
-            idx = 3 + 2 * index
-            # covariance = self.kalman_filter.sigma[idx:idx+3, idx:idx+3]
-            covariance = self.kalman_filter.sigma[idx:idx+2, idx:idx+2]
+            idx = 3 + 3 * index
+            covariance = self.kalman_filter.sigma[idx:idx+3, idx:idx+3]
             self.draw_ellipse_from_covariance(obstacle_pos, covariance, 2)
 
     def draw_checkpoint(self, checkpoint):

@@ -7,7 +7,6 @@ import time
 import Uleh.utils
 from Uleh.hue import calculate_hue_params
 from Uleh.saturation import calculate_saturation_threshold, calculate_saturation_threshold_green
-from robolab_turtlebot import Rate
 
 class ColorSettings:
     def __init__(
@@ -121,6 +120,8 @@ class ColorSettings:
         return
     # USE FOR A ROBOT
     def calibrate_color(self, turtle):
+        from robolab_turtlebot import Rate
+        
         rate = Rate(1000)
         
         turtle.reset_odometry()
