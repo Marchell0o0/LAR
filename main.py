@@ -135,11 +135,17 @@ def main():
     while running:   
         if visualization:       
             # if counter % 10 == 0:
+            print("Current obstacles before drawing")
+            for obstacle in env.obstacles:
+                print(obstacle)
             vis.screen.fill((0, 0, 0))
             vis.draw_everything()
 
             vis.show_cv2()
         
+        if counter == 0:
+            time.sleep(2)
+
         if turtlebot:
             if previous_time == 0:
                 previous_time = time.time()
@@ -183,6 +189,7 @@ def main():
             detected_rectgs, masked_rectgs, image_rectg  = rectg_processor.process_image()
 
             measurements = detected_rectgs
+            print(measurements)
 
             cv2.imshow('Camera view', image_rectg)
 

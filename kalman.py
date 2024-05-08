@@ -5,11 +5,11 @@ class KalmanFilter:
     def __init__(self, env):
         self.env = env
         self.sigma = 0.01*np.eye(3, dtype=float)
-        self.R = np.diag([0.0001, 0.0001, 0.0001]) # sigma x, y, a
-        self.Q = np.diag([0.01, np.deg2rad(2)]) # sigma r, phi, color
+        self.R = np.diag([0.001, 0.001, 0.001]) # sigma x, y, a
+        self.Q = np.diag([0.1, np.deg2rad(20)]) # sigma r, phi, color
         
-        #acceptable mahalanobis distance
-        self.alpha = 0.3
+        # acceptable mahalanobis distance
+        self.alpha = 1
         
         self.mu = np.array([[self.env.robot.x],[self.env.robot.y],[self.env.robot.a]], dtype=np.float64)
 
@@ -95,6 +95,7 @@ class KalmanFilter:
             measured_x = self.mu[0] + dist * np.cos(phi + self.mu[2])
             measured_y = self.mu[1] + dist * np.sin(phi + self.mu[2])
             measured_obstacle = Obstacle(measured_x, measured_y, color)
+            print("Measured ", measured_obstacle)
             # Find the closest obstacle based on Mahalanobis distance
             closest_idx = -1
             min_distance = float('inf')

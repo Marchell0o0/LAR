@@ -9,14 +9,14 @@ class Robot:
         self.max_detection_range = 1 # m
         self.fov_angle = np.deg2rad(70)
         self.radius = 0.177 # m
-        self.linear_speed = 0.7 /2 # m/s
+        self.linear_speed = 0.1 # m/s
         # self.linear_speed = 0.4 # m/s
-        self.linear_acceleration = 1 /2 # m/s^2
-        self.max_angular_speed = np.pi / 2 / 2 # rad/s
+        self.linear_acceleration = 0.1 # m/s^2
+        self.max_angular_speed = np.pi / 12 # rad/s
         self.minimal_angular_speed = 0.1
         self.minimal_linear_speed = 0.0
         
-        self.distance_allowence = 0.1 / 2
+        self.distance_allowence = 0.03
         self.angle_allowence = np.deg2rad(2)
         self.obstacle_clearence = 0.1 # m
         self.lookahead_point_distancing = np.deg2rad(5)

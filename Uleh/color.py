@@ -120,7 +120,7 @@ class ColorSettings:
         return
     # USE FOR A ROBOT
     def calibrate_color(self, turtle):
-        rate = Rate(100)
+        rate = Rate(1000)
         
         turtle.reset_odometry()
         a = turtle.get_odometry()[2]
@@ -137,7 +137,7 @@ class ColorSettings:
                     } for color_name in self.colors}
         
         while abs(abs(a) - math.pi) >= epsilon and not turtle.is_shutting_down():
-            turtle.cmd_velocity(angular=math.pi/2)
+            turtle.cmd_velocity(angular=math.pi/6)
             
             # Calculate the nearest multiple of π/6 to 'a'
             nearest_multiple = round(a / (math.pi / 6)) * (math.pi / 6)
@@ -147,13 +147,13 @@ class ColorSettings:
                 if nearest_multiple != last_triggered_multiple:
                     print("Triggered at a multiple of π/6:", a)
                     turtle.cmd_velocity(angular=0)
-                    time.sleep(0.3)
+                    time.sleep(0.5)
                     
                     # ------Function to call------
                     self.save_image_values(turtle, color_data)
                     # ---------------------------
                     
-                    turtle.cmd_velocity(angular=math.pi/2)
+                    turtle.cmd_velocity(angular=math.pi/6)
                     last_triggered_multiple = nearest_multiple
 
             rate.sleep()
