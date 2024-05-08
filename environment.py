@@ -61,23 +61,29 @@ class Environment:
     
     def simulate_movement(self, move, time):
         # Introduce noise in linear and angular velocities
-        linear_noise = 0 * np.random.normal(0, 0.1)  # Mean 0, standard deviation 0.05
-        angular_noise = 0 * np.random.normal(0, 0.05) # Mean 0, standard deviation 0.01
+        linear_noise =  np.random.normal(0, 0.2)  # Mean 0, standard deviation 0.05
+        angular_noise =  np.random.normal(0, 0.1) # Mean 0, standard deviation 0.01
 
         # Apply the noise to the movement values
         noisy_linear = move[0] + linear_noise
         noisy_angular = move[1] + angular_noise
 
-        delta_x = np.cos(self.real_robot.a) * noisy_linear * time
-        delta_y = np.sin(self.real_robot.a) * noisy_linear * time
-        delta_theta = noisy_angular * time
-        # Update the robot's position and orientation with the noisy values
-        self.real_robot.x += delta_x
-        self.real_robot.y += delta_y
-        self.real_robot.a += delta_theta
+        measured_delta_x = np.cos(self.real_robot.a) * move[0] * time
+        measured_delta_y = np.sin(self.real_robot.a) * move[0] * time
+        measured_delta_theta = move[1] * time
 
+        noisy_delta_x = np.cos(self.real_robot.a) * noisy_linear * time
+        noisy_delta_y = np.sin(self.real_robot.a) * noisy_linear * time
+        noisy_delta_theta = noisy_angular * time
+        # Update the robot's position and orientation with the noisy values
+        self.real_robot.x += measured_delta_x
+        self.real_robot.y += measured_delta_y
+        self.real_robot.a += measured_delta_theta
+        
         # Normalize the angle
         self.real_robot.a = np.arctan2(np.sin(self.real_robot.a), np.cos(self.real_robot.a))
+        
+        return (noisy_delta_x, noisy_delta_y, noisy_delta_theta)
 
     def get_measurement(self):
         measurements = []
@@ -91,8 +97,8 @@ class Environment:
                     -self.real_robot.fov_angle / 2 <= true_angle_to_obstacle <= self.real_robot.fov_angle / 2):
                 
                 # Add noise to distance and angle measurements
-                distance_noise = 0 * np.random.normal(0, 0.1)
-                angle_noise = 0 * np.random.normal(0, np.radians(1))
+                distance_noise =  np.random.normal(0, 0.1)
+                angle_noise =  np.random.normal(0, np.radians(1))
 
                 # Ensure that the measurements are scalar
                 measured_distance = min(self.real_robot.max_detection_range, float(true_distance_to_obstacle + distance_noise))
@@ -102,12 +108,15 @@ class Environment:
                 
         return measurements
     
-    def prepare_odometry_control(self, prev_pos):
-        x, y, theta = prev_pos
-        dx = self.real_robot.x - x
-        dy = self.real_robot.y - y
-        dtheta = self.real_robot.a - theta
-        return (dx, dy, dtheta)
+    def get_odometry(self):
+        return (self.real_robot.x, self.real_robot.y, self.real_robot.a)
+    
+    # def prepare_odometry_control(self, prev_pos):
+    #     x, y, theta = prev_pos
+    #     dx = self.real_robot.x - x
+    #     dy = self.real_robot.y - y
+    #     dtheta = self.real_robot.a - theta
+    #     return (dx, dy, dtheta)
     
         # x, y, theta = prev_pos
         # d_trans = np.sqrt((self.real_robot.x - x)**2 + (self.real_robot.y - y)**2)

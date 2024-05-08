@@ -4,10 +4,9 @@ from environment import Obstacle
 class KalmanFilter:
     def __init__(self, env):
         self.env = env
-        self.sigma = 1*np.eye(3, dtype=float)
+        self.sigma = 0.01*np.eye(3, dtype=float)
         self.R = np.diag([0.0001, 0.0001, 0.001]) # sigma x, y, a
-        self.Q_obstacles = np.diag([0.15, np.deg2rad(5), 0.001]) # sigma r, phi, color
-        self.Q_odometry = np.diag([0.001, 0.001, 0.001]) # sigma x, y, theta
+        self.Q_obstacles = np.diag([0.1, np.deg2rad(2), 0.001]) # sigma r, phi, color
         
         # acceptable mahalanobis distance
         self.alpha = 2
@@ -16,11 +15,41 @@ class KalmanFilter:
 
     def Fx(self):
         total_state_length = 3 + 3 * len(self.env.obstacles)  # 3 for robot state, 3 per obstacle
-        Fx_base = np.eye(3)  # Base for robot state
-        Fx_obstacles = np.zeros((3, total_state_length - 3))  # Extend to cover all obstacles
-        return np.block([Fx_base, Fx_obstacles])  # Combined state transition matrix
+        Fx_base = np.eye(3)
+        Fx_obstacles = np.zeros((3, total_state_length - 3))
+        return np.block([Fx_base, Fx_obstacles])
 
-    def prediction_update(self, u, dt):
+    def pos_update(self, u):
+        dx = u[0]
+        dy = u[1]
+        dtheta = u[2]
+        theta = self.mu[2]  # heading before update
+        
+        self.mu[0] += dx          
+        self.mu[1] += dy          
+        self.mu[2] += dtheta          
+        self.mu[2] = np.arctan2(np.sin(self.mu[2]), np.cos(self.mu[2])) 
+                             
+        # Jacobian matrix G for state transition
+        G = np.zeros((3, 3))
+        
+        distance_travelled = np.sqrt(dx**2 + dy**2)
+        # using mu_t-1 for this
+        # G[0, 2] = -distance_travelled * np.sin(theta + dtheta / 2)
+        # G[1, 2] = distance_travelled * np.cos(theta + dtheta / 2)
+        G[0, 2] = -dx * np.sin(theta) - dy * np.cos(theta)
+        G[1, 2] = dx * np.cos(theta) - dy * np.sin(theta)
+
+
+        Fx = self.Fx()
+        G = np.eye(self.sigma.shape[0]) + Fx.T @ G @ Fx
+        self.sigma = G @ self.sigma @ G.T
+        self.sigma = self.sigma + Fx.T @ self.R @ Fx
+        
+        return
+    
+    """
+    def pos_update(self, u, dt):
         v, w = u[0], u[1]
         theta = self.mu[2]
         if abs(w) > 1e-5:
@@ -51,7 +80,8 @@ class KalmanFilter:
         self.sigma = self.sigma + Fx.T @ self.R @ Fx
         
         return
-
+    """
+    
     def compute_mahalanobis_distance(self, measurement, obstacle_idx):
         dist, phi, color = measurement
         if isinstance(dist, np.ndarray):
@@ -110,7 +140,7 @@ class KalmanFilter:
                 # Expand the covariance matrix
                 sigma_extension = np.zeros((new_size, new_size))
                 sigma_extension[:self.sigma.shape[0], :self.sigma.shape[1]] = self.sigma
-                new_diag = 100 * np.eye(3)
+                new_diag = 10 * np.eye(3)
                 sigma_extension[-3:, -3:] = new_diag
                 self.sigma = sigma_extension
                 
@@ -192,7 +222,7 @@ class KalmanFilter:
         return
 
 
-    def update_environment(self):
+    def update_for_visualization(self):
         self.env.robot.x = self.mu[0]
         self.env.robot.y = self.mu[1]
         self.env.robot.a = self.mu[2]
@@ -202,8 +232,8 @@ class KalmanFilter:
             obstacle.y = self.mu[mu_idx + 1]
             obstacle.color = self.mu[mu_idx + 2]
             
-    def process_measurement(self, u, z_obstacles, z_odometry, dt):
-        self.prediction_update(u, dt)
-        self.obstacles_measurement_update(z_obstacles)
-        self.odometry_measurement_update(z_odometry)
-        self.update_environment()
+    # def process_measurement(self, u, z_obstacles, z_odometry, dt):
+    #     self.pos_update(u, dt)
+    #     self.obstacles_measurement_update(z_obstacles)
+    #     self.odometry_measurement_update(z_odometry)
+    #     self.update_environment()

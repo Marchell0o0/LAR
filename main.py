@@ -85,16 +85,16 @@ def main():
     #                      Obstacle(1.5, 0.75, 2),
     #                      ])
     
-    env = Environment(Robot(0, 0, 0), Robot(0, 0, 0),
-                        [Checkpoint(1.3, 0, 0),
-                         Checkpoint(2.3, 1, np.pi/4),
-                         Checkpoint(1.3, 0, -np.pi)],
+    env = Environment(Robot(-0.3, 0, 0), Robot(-0.3, 0, 0),
+                        [Checkpoint(1, 0, 0),
+                         Checkpoint(2, 1, np.pi/4),
+                         Checkpoint(1, 0, -np.pi)],
                          [],
-                        [Obstacle(0.80, -0.20, 0),
-                         Obstacle(0.80, 0.20, 1),
-                         Obstacle(0.80, -0.50, 2),
-                         Obstacle(1.8, 0.50, 1),
-                         Obstacle(1.8, 0.75, 2),
+                        [Obstacle(0.50, -0.20, 0),
+                         Obstacle(0.50, 0.20, 1),
+                         Obstacle(0.50, -0.50, 2),
+                         Obstacle(1.5, 0.50, 1),
+                         Obstacle(1.5, 0.75, 2),
                          ])
 
     # env = Environment(Robot(0, 0, 0), 
@@ -124,8 +124,8 @@ def main():
     kalman_filter = KalmanFilter(env)
 
     if visualization:
-        # screen_dimensions = (2160, 3840)
-        screen_dimensions = (1440, 900)
+        screen_dimensions = (2160, 3840)
+        # screen_dimensions = (1440, 900)
         vis = RobotVisualization(env, path_execution, kalman_filter, screen_dimensions)
     
     if turtlebot:
@@ -137,9 +137,8 @@ def main():
     
     running = True
     counter = 0
-    previous_time = 0
-    # previous_obstacles_size = 0
-    # previous_odometry = (0, 0, 0)
+    previous_odometry = (env.robot.x, env.robot.y, env.robot.a)
+    previous_time =  0
     obstacle_measurements = []
     next_move = (0, 0)
     print("Starting main loop")
@@ -159,132 +158,115 @@ def main():
         if turtlebot:
             if (cv2.waitKey(1) & 0xFF == ord('q')) or turtle.is_shutting_down():
                 running = False
-                
+            
+            # compute next move
+            
+            # execute the move
+            
+            # get obstacle measurement
+            # get odometry as change from previous pos
+            
+            # kalman predict from odometry -> mu_t
+            # and obstacles -> obstacle measurement after the move -> mu_t
+            
+            # update path
+            
+            
+            next_move = path_execution.get_current_move()
+            turtle.cmd_velocity(angular = next_move[1], linear = next_move[0])
+            # move change, record time from here
+            previous_time = time.time()
+            rate.sleep()
 
-            # if next_move[0] == 0 and next_move[1] == 0:
-            #     print("Stopped, making a measurement")
-            #     time.sleep(0.5)
-            #     image = turtle.get_rgb_image()
-            #     pc_image = turtle.get_point_cloud()
-
-            #     rectg_processor = RectangleProcessor(image,
-            #                                     pc_image,
-            #                                     color_settings)
-            #     detected_rectgs, masked_rectgs, image_rectg  = rectg_processor.process_image()
-            #     obstacle_measurements = detected_rectgs
-            # else:
-            #     obstacle_measurements = []
-            if counter % 10 == 0:
+            if next_move[0] == 0 and next_move[1] == 0:
+                print("Robot has stopped, making a measurement")
+                time.sleep(0.5)
                 image = turtle.get_rgb_image()
                 pc_image = turtle.get_point_cloud()
+
                 rectg_processor = RectangleProcessor(image,
-                                                    pc_image,
-                                                    color_settings)
+                                                pc_image,
+                                                color_settings)
                 detected_rectgs, masked_rectgs, image_rectg  = rectg_processor.process_image()
-                print("Saving a photo")
-                cv2.imwrite(f"camera/camera_pov_{counter}.png", image_rectg)
-                print("SUCCESS")
-
-            if previous_time == 0:
-                previous_time = time.time()
-            dt = time.time() - previous_time
-
-            odometry_measurement = turtle.get_odometry()
-
-            env.real_robot.x = odometry_measurement[0]
-            env.real_robot.y = odometry_measurement[1]
-            env.real_robot.a = odometry_measurement[2]
-
-            if counter % 10 == 0:
-                obstacle_measurements = env.get_measurement()
+                obstacle_measurements = detected_rectgs
             else:
                 obstacle_measurements = []
 
+            current_odometry = turtle.get_odometry()
+            odometry_change = current_odometry - previous_odometry
+            # start recording odometry changes right after using it
+            previous_odometry = current_odometry
 
-            path_execution.update_path()
-            next_move = path_execution.get_current_move()
-            kalman_filter.process_measurement(next_move, obstacle_measurements, odometry_measurement, dt)
+            # need to know the time here, so hope the rest of the cycle
+            # until previous time update takes very little time
+            # |
+            # V lines should be very quick, robot is moving but it's not accounted for in the kalman
+            # TODO Check how much of a problem that is
             
-            turtle.cmd_velocity(angular = next_move[1], linear = next_move[0])
-            previous_time = time.time()
-            
-            rate.sleep()
-
-            # odometry = turtle.get_odometry()
-                    
+            # Or maybe don't need it at all
             # dt = time.time() - previous_time
-            # angular_velocity = -(previous_odometry[2] - odometry[2]) / dt
-            # delta_x = odometry[0] - previous_odometry[0]
-            # delta_y = odometry[1] - previous_odometry[1]
-            # distance_straight = np.sqrt(delta_x**2 + delta_y**2)
-
-            # # Calculate the linear velocity considering curvature
-            # # if angular_velocity > 1e-5:
-            # #     radius = distance_straight / angular_velocity
-            # #     linear_velocity = radius * angular_velocity
-            # # else:
-            # linear_velocity = distance_straight / dt
-            # print("Previous move velocity:", linear_velocity)
-            # previous_move = (linear_velocity, angular_velocity)
-            # previous_time = time.time()
-            # previous_odometry = odometry
             
-            # print("Odometry:", odometry)
-            # print("Robot position:", env.robot.x, env.robot.y, env.robot.a)
-
-            # # env.simulate_movement(previous_move, dt)
-            # path_execution.update_path()
-                
-            # # obstacle_measurements = env.get_measurement()
-
-            # image = turtle.get_rgb_image()
-            # pc_image = turtle.get_point_cloud()
-
-            # rectg_processor = RectangleProcessor(image,
-            #                                 pc_image,
-            #                                 color_settings)
-            # detected_rectgs, masked_rectgs, image_rectg  = rectg_processor.process_image()
-
-            # obstacle_measurements = detected_rectgs
-            # print(obstacle_measurements)
-
-            # cv2.imshow('Camera view', image_rectg)
-
-            # next_move = path_execution.get_current_move()
-            # turtle.cmd_velocity(angular = next_move[1], linear = next_move[0])
-            # rate.sleep()
+            # update mu_t-1 to mu_t
+            kalman_filter.pos_update(odometry_change)
             
+            # measurements are from mu_t
+            kalman_filter.obstacles_measurement_update(obstacle_measurements)
+            kalman_filter.update_for_visualization()
+            
+            path_execution.update_path()
             
         else:
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 running = False
+            if counter > 100:
+                next_move = path_execution.get_current_move()
                 
-            if previous_time == 0:
+                # move change, record time from here
+                if previous_time == 0:
+                    previous_time = time.time()
+                dt = time.time() - previous_time
+                    
+                odometry_change = env.simulate_movement(next_move, dt)
                 previous_time = time.time()
-            dt = time.time() - previous_time
-            
-            # if dt < 0.01:
-                # continue
-            
-            if counter % 10 == 0:
-                obstacle_measurements = env.get_measurement()
-            else:
-                obstacle_measurements = []
                 
-            path_execution.update_path()
-            next_move = path_execution.get_current_move()
-            env.simulate_movement(next_move, dt)
-            odometry = (env.real_robot.x, env.real_robot.y, env.real_robot.a)
-            kalman_filter.process_measurement(next_move, obstacle_measurements, odometry, dt)
+                # print(odometry_change)
+                
+                if visualization:
+                    vis.clock.tick(120)
+                    
+                # if next_move[0] == 0 and next_move[1] == 0:
+                #     print("Robot has stopped, making a measurement")
+                #     time.sleep(0.5)
+                #     image = turtle.get_rgb_image()
+                #     pc_image = turtle.get_point_cloud()
 
-            previous_time = time.time()
-            
+                #     rectg_processor = RectangleProcessor(image,
+                #                                     pc_image,
+                #                                     color_settings)
+                #     detected_rectgs, masked_rectgs, image_rectg  = rectg_processor.process_image()
+                #     obstacle_measurements = detected_rectgs
+                # else:
+                #     obstacle_measurements = []
+
+                if counter % 10 == 0:
+                    obstacle_measurements = env.get_measurement()
+                else:
+                    obstacle_measurements = []
+                    
+                # update mu_t-1 to mu_t
+                kalman_filter.pos_update(odometry_change)
+                
+                # measurements are from mu_t
+                kalman_filter.obstacles_measurement_update(obstacle_measurements)
+                kalman_filter.update_for_visualization()
+                
+                path_execution.update_path()
+                
         # rgb = turtle.get_rgb_image()
         # cv2.imshow('RGB Camera', rgb)     
          
         counter += 1
-        if visualization:
-            vis.clock.tick(120)
+        
             
     # stats = pstats.Stats(pr)
     # stats.sort_stats(pstats.SortKey.TIME)
