@@ -6,16 +6,16 @@ def distance(point1, point2) -> float:
 class Robot:
     def __init__(self, x, y, a,):
 
-        self.max_detection_range = 1 # m
+        self.max_detection_range = 1.1 # m
         self.fov_angle = np.deg2rad(70)
         self.radius = 0.177 # m
-        self.linear_speed = 0.3 # m/s
-        self.linear_acceleration = 0.3 # m/s^2
+        self.linear_speed = 0.5 # m/s
+        self.linear_acceleration = 1 # m/s^2
         self.max_angular_speed = np.pi / 4 # rad/s
-        self.minimal_angular_speed = 0.1
+        self.minimal_angular_speed = 0.5
         self.minimal_linear_speed = 0.0
         
-        self.distance_allowence = 0.05
+        self.distance_allowence = 0.03
         self.angle_allowence = np.deg2rad(2)
         self.obstacle_clearence = 0 # m
         self.lookahead_point_distancing = np.deg2rad(5)
@@ -49,53 +49,121 @@ class Environment:
         self.robot: Robot = robot
         self.checkpoints: list[Checkpoint] = checkpoints
         self.obstacles: list[Obstacle] = obstacles
+        self.primary_checkpoints_idxs: list[int] = []
         self.real_robot: Robot = real_robot
         
+        self.found_finish = False
+
         self.hidden_obstacles: set[Obstacle] = hidden_obstacles
 
+    def add_checkpoint_for_obstacle_pair(self, obstacle_red, obstacle_blue):
+        proximity_threshold = 0.20  # up to  cm is the same checkpoint, probably should be higher
+        center = ((obstacle_red.x + obstacle_blue.x) / 2, (obstacle_red.y + obstacle_blue.y) / 2)
+        direction = (obstacle_blue.x - obstacle_red.x, obstacle_blue.y - obstacle_red.y)
+        normal = (-direction[1], direction[0])
+        side = normal[0] * (self.robot.x - obstacle_red.x) + normal[1] * (self.robot.y - obstacle_red.y)
+
+        if side > 0:
+            checkpoint_angle = np.arctan2(normal[1], normal[0])
+            turned_checkpoint_angle = checkpoint_angle + np.pi / 2
+        else:
+            checkpoint_angle = np.arctan2(-normal[1], -normal[0])
+            turned_checkpoint_angle = checkpoint_angle - np.pi / 2
+
+        offset_distance = 0.05 + self.robot.radius
+        new_checkpoint = Checkpoint(center[0] + offset_distance * np.cos(checkpoint_angle),
+                                    center[1] + offset_distance * np.sin(checkpoint_angle),
+                                    np.arctan2(np.sin(checkpoint_angle + np.pi), np.cos(checkpoint_angle + np.pi)))
+        
+        possible_new_checkpoints = Checkpoint(center[0] + offset_distance * np.cos(checkpoint_angle + np.pi),
+                                              center[1] + offset_distance * np.sin(checkpoint_angle + np.pi),
+                                              np.arctan2(np.sin(checkpoint_angle), np.cos(checkpoint_angle)))
+
+        turned_checkpoint_angle = np.arctan2(np.sin(turned_checkpoint_angle), np.cos(turned_checkpoint_angle))
+        turned_checkpoint = Checkpoint(new_checkpoint.x, new_checkpoint.y, turned_checkpoint_angle)
+
+        updated = False
+        for idx in self.primary_checkpoints_idxs:
+            if distance(new_checkpoint, self.checkpoints[idx]) < proximity_threshold:
+                self.checkpoints[idx] = new_checkpoint
+                self.checkpoints[idx + 1] = turned_checkpoint
+                updated = True
+                break
+            # already visited checkpoint but the robot got behind the obstacles
+            if distance(self.checkpoints[idx], possible_new_checkpoints) < proximity_threshold:
+                updated = True
+                break
+
+
+                
+
+        if not updated and not self.found_finish:
+            self.checkpoints.append(new_checkpoint)
+            self.primary_checkpoints_idxs.append(len(self.checkpoints) - 1)
+            self.checkpoints.append(turned_checkpoint)
+
+
+        return
+
+    def add_finish(self, obstacle_one, obstacle_two):
+        proximity_threshold = 0.20  # up to 20 cm is the same checkpoint, probably should be higher
+        center = ((obstacle_one.x + obstacle_two.x) / 2, (obstacle_one.y + obstacle_two.y) / 2)
+        direction = (obstacle_two.x - obstacle_one.x, obstacle_two.y - obstacle_one.y)
+        normal = (-direction[1], direction[0])
+        side = normal[0] * (self.robot.x - obstacle_one.x) + normal[1] * (self.robot.y - obstacle_one.y)
+
+        if side > 0:
+            checkpoint_angle = np.arctan2(normal[1], normal[0])
+        else:
+            checkpoint_angle = np.arctan2(-normal[1], -normal[0])
+
+        offset_distance = 0.05 + self.robot.radius
+        new_x = center[0] + offset_distance * np.cos(checkpoint_angle)
+        new_y = center[1] + offset_distance * np.sin(checkpoint_angle)
+        checkpoint_angle = np.arctan2(np.sin(checkpoint_angle + np.pi), np.cos(checkpoint_angle + np.pi))
+
+        # Check if there's an existing checkpoint nearby
+        updated = False
+        # for checkpoint in self.checkpoints:
+        # for idx in self.primary_checkpoints_idxs:
+        if np.sqrt((self.checkpoints[-1].x - new_x)**2 + (self.checkpoints[-1].y - new_y)**2) < proximity_threshold:
+            # Adjust existing self.checkpoints[-1] position and angle
+            self.checkpoints[-1].x = new_x
+            self.checkpoints[-1].y = new_y
+            self.checkpoints[-1].a = checkpoint_angle
+            updated = True
+            return
+
+        if not updated:
+            # Create new checkpoint
+            new_checkpoint = Checkpoint(new_x, new_y, checkpoint_angle)
+            self.checkpoints.append(new_checkpoint)
+            self.found_finish = True
+        return
+
     def update_checkpoints(self):
-        proximity_threshold = 0.20  # Define a distance threshold for "nearby"
         obstacles_red = [obstacle for obstacle in self.obstacles if obstacle.color == 0]
         obstacles_blue = [obstacle for obstacle in self.obstacles if obstacle.color == 1]
+        obstacles_green = [obstacle for obstacle in self.obstacles if obstacle.color == 2]
 
         for obstacle_red in obstacles_red:
             for obstacle_blue in obstacles_blue:
-                if abs(distance(obstacle_blue, obstacle_red) - 0.055) < 0.07:
-                    center = ((obstacle_red.x + obstacle_blue.x) / 2, (obstacle_red.y + obstacle_blue.y) / 2)
-                    direction = (obstacle_blue.x - obstacle_red.x, obstacle_blue.y - obstacle_red.y)
-                    normal = (-direction[1], direction[0])
-                    side = normal[0] * (self.robot.x - obstacle_red.x) + normal[1] * (self.robot.y - obstacle_red.y)
+                if abs(distance(obstacle_blue, obstacle_red) - 0.055) < 0.1:
+                    self.add_checkpoint_for_obstacle_pair(obstacle_red, obstacle_blue)
 
-                    if side > 0:
-                        checkpoint_angle = np.arctan2(normal[1], normal[0])
-                    else:
-                        checkpoint_angle = np.arctan2(-normal[1], -normal[0])
-
-                    offset_distance = 0.05 + self.robot.radius
-                    new_x = center[0] + offset_distance * np.cos(checkpoint_angle)
-                    new_y = center[1] + offset_distance * np.sin(checkpoint_angle)
-                    checkpoint_angle = np.arctan2(np.sin(checkpoint_angle + np.pi), np.cos(checkpoint_angle + np.pi))
-
-                    # Check if there's an existing checkpoint nearby
-                    updated = False
-                    for checkpoint in self.checkpoints:
-                        if np.sqrt((checkpoint.x - new_x)**2 + (checkpoint.y - new_y)**2) < proximity_threshold:
-                            # Adjust existing checkpoint position and angle
-                            checkpoint.x = new_x
-                            checkpoint.y = new_y
-                            checkpoint.a = checkpoint_angle
-                            updated = True
-                            break
-
-                    if not updated:
-                        # Create new checkpoint
-                        new_checkpoint = Checkpoint(new_x, new_y, checkpoint_angle)
-                        self.checkpoints.append(new_checkpoint)
+        for i in range(len(obstacles_green)):
+            for j in range(len(obstacles_green)):
+                if i == j:
+                    continue
+                if abs(distance(obstacles_green[i], obstacles_green[j]) - 0.055) < 0.1:
+                    self.add_finish(obstacles_green[i], obstacles_green[j])
+                    return
+                    
                         
     def simulate_movement(self, move, time):
         # Introduce noise in linear and angular velocities
-        linear_noise = 0 * np.random.normal(0, 0.05)  # Mean 0, standard deviation 0.05
-        angular_noise = 0 * np.random.normal(0, 0.01) # Mean 0, standard deviation 0.01
+        linear_noise =  np.random.normal(0, 0.05)  # Mean 0, standard deviation 0.05
+        angular_noise = np.random.normal(0, 0.01) # Mean 0, standard deviation 0.01
 
         # Apply the noise to the movement values
         noisy_linear = move[0] + linear_noise
@@ -130,7 +198,7 @@ class Environment:
                     -self.real_robot.fov_angle / 2 <= true_angle_to_obstacle <= self.real_robot.fov_angle / 2):
                 
                 # Add noise to distance and angle measurements
-                distance_noise =  np.random.normal(0, 0.1)
+                distance_noise =  np.random.normal(0, 0.03)
                 angle_noise =  np.random.normal(0, np.radians(1))
 
                 # Ensure that the measurements are scalar
@@ -144,18 +212,3 @@ class Environment:
     def get_odometry(self):
         return (self.real_robot.x, self.real_robot.y, self.real_robot.a)
     
-    # def prepare_odometry_control(self, prev_pos):
-    #     x, y, theta = prev_pos
-    #     dx = self.real_robot.x - x
-    #     dy = self.real_robot.y - y
-    #     dtheta = self.real_robot.a - theta
-    #     return (dx, dy, dtheta)
-    
-        # x, y, theta = prev_pos
-        # d_trans = np.sqrt((self.real_robot.x - x)**2 + (self.real_robot.y - y)**2)
-        # d_rot1 = np.arctan2(y - self.real_robot.y, x - self.real_robot.x) - self.real_robot.a
-        # d_rot2 = theta - self.real_robot.a - d_rot1
-        # print(f"Prev: ({x}, {y}, {theta}) Current: ({self.real_robot.x}, {self.real_robot.y}, {self.real_robot.a})")
-        # print(f"Computed: d_trans={d_trans}, d_rot1={d_rot1}, d_rot2={d_rot2}")
-        # return (d_rot1, d_trans, d_rot2)
-

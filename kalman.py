@@ -6,10 +6,10 @@ class KalmanFilter:
         self.env = env
         self.sigma = 0.01*np.eye(3, dtype=float)
         self.R = np.diag([0.0001, 0.0001, 0.001]) # sigma x, y, a
-        self.Q_obstacles = np.diag([0.1, np.deg2rad(2), 0.001]) # sigma r, phi, color
+        self.Q_obstacles = np.diag([0.05, np.deg2rad(1), 0.001]) # sigma r, phi, color
         
         # acceptable mahalanobis distance
-        self.alpha = 2
+        self.alpha = 0.2
         
         self.mu = np.array([[self.env.robot.x],[self.env.robot.y],[self.env.robot.a]], dtype=np.float64)
 
@@ -193,34 +193,6 @@ class KalmanFilter:
         H[1, idx + 1] = delta[0] / q
         H[2, idx + 2] = 1
         return H
-
-    def odometry_measurement_update(self, z_odometry):
-        # Measurement matrix
-        H = np.zeros((3, self.mu.shape[0]))
-        H[:3, :3] = np.eye(3)  # assuming the first three state variables are x, y, theta
-
-        # Measurement residual
-        dx = z_odometry[0] - self.mu[0]
-        dy = z_odometry[1] - self.mu[1]
-        dtheta = z_odometry[2] - self.mu[2]
-        y = np.array([[dx], [dy], [dtheta]], dtype = np.float64)
-        y = np.reshape(y, (3, 1))
-        
-        # Normalization of the angle difference
-        y[2] = np.arctan2(np.sin(y[2]), np.cos(y[2]))
-
-        # Compute the Kalman gain
-        S = H @ self.sigma @ H.T + self.Q_odometry
-        K = self.sigma @ H.T @ np.linalg.inv(S)
-        # Update the state estimate.
-        self.mu += K @ y
-        self.mu[2] = np.arctan2(np.sin(self.mu[2]), np.cos(self.mu[2]))  # Normalize the angle
-
-        # Update the covariance matrix.
-        self.sigma = (np.eye(len(self.sigma)) - K @ H) @ self.sigma
-
-        return
-
 
     def update_for_visualization(self):
         self.env.robot.x = self.mu[0]

@@ -44,15 +44,15 @@ class PathCreation:
     def initialize_path(self, robot, goal_checkpoint):
         path = []
         start = Node(robot.x, robot.y)
-        goal = Node(goal_checkpoint.x, goal_checkpoint.y)
+        # goal = Node(goal_checkpoint.x, goal_checkpoint.y)
         print("Straight path: ", end='')
-        if self.straight_path_exists(start, goal):
+        if self.straight_path_exists(start, goal_checkpoint):
             print("NO COLLISION")
-            return [start, goal]
+            return [start, goal_checkpoint]
         print("COLLISION")
         
         print("A*:        ", end='')
-        path = self.a_star.search(goal)
+        path = self.a_star.search(goal_checkpoint)
         if path:
             print("    FOUND")
             return path

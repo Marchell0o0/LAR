@@ -1,5 +1,7 @@
 import numpy as np
 import time
+from environment import Checkpoint
+
 def distance(point1, point2) -> float:
     return np.sqrt((point1.x - point2.x)**2 + (point1.y - point2.y)**2)
 
@@ -22,11 +24,17 @@ class PathExecution:
         self.previous_move_time = 0
 
     def update_path(self):
+        if not self.path:
+            return 
+        if distance(self.path[-1], self.env.checkpoints[self.current_checkpoint_idx]) > 0.03:
+            self.path = []
+            return
         for node in self.path:
             for obstacle in self.env.obstacles:
                 allowed_radius = obstacle.radius + self.env.robot.radius + self.env.robot.obstacle_clearence
                 if distance(node, obstacle) < allowed_radius - 0.05: # ease up to 5 cm
                     self.path = []
+                    return
 
     def update_lookahead_point(self):
         min_dist = float('inf')
@@ -86,9 +94,13 @@ class PathExecution:
             angle_difference = self.env.robot.a - self.env.checkpoints[self.current_checkpoint_idx].a
             angle_difference = np.arctan2(np.sin(angle_difference), np.cos(angle_difference))
             if abs(angle_difference) > self.env.robot.angle_allowence:
+                if abs(angle_difference) < np.deg2rad(5):
+                    angular_speed = self.env.robot.minimal_angular_speed
+                else:
+                    angular_speed = self.env.robot.max_angular_speed 
                 direction = -np.sign(angle_difference)
                 self.get_to_desired_speed(0)
-                return (self.current_speed, direction * self.env.robot.max_angular_speed)
+                return (self.current_speed, direction * angular_speed)
             
             self.current_checkpoint_idx += 1
             self.path = []
@@ -147,7 +159,15 @@ class PathExecution:
                     self.get_to_desired_speed(0)
                     return (self.current_speed, 0)
             else:
-                self.get_to_desired_speed(0)
+                if not self.env.found_finish:
+                    exploration_distance = 0.40
+                    # self.get_to_desired_speed(0)
+                    new_x = self.env.robot.x + np.cos(self.env.robot.a) * exploration_distance
+                    new_y = self.env.robot.y + np.sin(self.env.robot.a) * exploration_distance
+                    new_a = float(self.env.robot.a)
+                    self.env.checkpoints.append(Checkpoint(new_x, new_y, new_a))
+                else:
+                    self.get_to_desired_speed(0)
                 return (self.current_speed, 0)
         # Here the path is guaranteed to be non-empty
         return self.move_through_path()

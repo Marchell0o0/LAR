@@ -85,11 +85,11 @@ def main():
     #                      ])
 
 
-    env = Environment(Robot(0, 0, 0), Robot(0, 0, 0),
-                        [],
-                        [],
-                        [Obstacle(0.5, 0.05, 0),
-                         Obstacle(0.5, -0.05, 1)])
+    # env = Environment(Robot(0, 0, 0), Robot(0, 0, 0),
+    #                     [],
+    #                     [],
+    #                     [Obstacle(1, 0.05, 0),
+    #                      Obstacle(1, -0.05, 1)])
     
     # env = Environment(Robot(0, 0, np.pi/2), 
     #                     [Checkpoint(0, 1, np.pi/2)],
@@ -108,21 +108,28 @@ def main():
     #                      ])
     
     
-    # env = Environment(Robot(0, 0, 0), Robot(0, 0, 0),
-    #                     [Checkpoint(0, 0, np.pi/2),
-    #                      Checkpoint(0, 0, np.pi),
-    #                      Checkpoint(0, 0, -np.pi/2),
-    #                      Checkpoint(0, 0, 0)],
-    #                      [],
-    #                      [])
+    env = Environment(Robot(0, 0, 0), Robot(0, 0, 0),
+                        [Checkpoint(0, 0, np.pi/2),
+                         Checkpoint(0, 0, np.pi),
+                         Checkpoint(0, 0, -np.pi/2),
+                         Checkpoint(0, 0, 0)],
+                         [],
+                         [Obstacle(1, 0.05, 0),
+                         Obstacle(1, -0.05, 1),
+                         Obstacle(1.,1, 1),
+                         Obstacle(0.95, 1.05, 0),
+                         Obstacle(0, 1.50, 2),
+                         Obstacle(0.05, 1.55, 2),
+                         Obstacle(-1.25, 0, 2),
+                         Obstacle(-1.35, 0, 2)])
     
     path_creation = PathCreation(env)
     path_execution = PathExecution(env, path_creation)
     kalman_filter = KalmanFilter(env)
 
     if visualization:
-        screen_dimensions = (2160, 3840)
-        # screen_dimensions = (1440, 900)
+        # screen_dimensions = (2160, 3840)
+        screen_dimensions = (1440, 900)
         vis = RobotVisualization(env, path_execution, kalman_filter, screen_dimensions)
     
     if turtlebot:
@@ -215,7 +222,7 @@ def main():
         else:
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 running = False
-            if counter > 100:
+            if counter > 20:
                 next_move = path_execution.get_current_move()
                 
                 # move change, record time from here
@@ -228,24 +235,9 @@ def main():
                     # time.sleep(0.5)
                     
                 odometry_change = env.simulate_movement(next_move, dt)
-                previous_time = time.time()
-                
-                # print(odometry_change)
                 
                 if visualization:
                     vis.clock.tick(120)
-                    
-        
-                #     image = turtle.get_rgb_image()
-                #     pc_image = turtle.get_point_cloud()
-
-                #     rectg_processor = RectangleProcessor(image,
-                #                                     pc_image,
-                #                                     color_settings)
-                #     detected_rectgs, masked_rectgs, image_rectg  = rectg_processor.process_image()
-                #     obstacle_measurements = detected_rectgs
-                # else:
-                #     obstacle_measurements = []
 
                 if counter % 10 == 0:
                     obstacle_measurements = env.get_measurement()
@@ -262,6 +254,8 @@ def main():
                 env.update_checkpoints()
                 
                 path_execution.update_path()
+                previous_time = time.time()
+
                 
         # rgb = turtle.get_rgb_image()
         # cv2.imshow('RGB Camera', rgb)     
