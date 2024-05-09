@@ -17,7 +17,7 @@ class Robot:
         
         self.distance_allowence = 0.05
         self.angle_allowence = np.deg2rad(2)
-        self.obstacle_clearence = 0.1 # m
+        self.obstacle_clearence = 0 # m
         self.lookahead_point_distancing = np.deg2rad(5)
         
         self.x = x
@@ -53,16 +53,49 @@ class Environment:
         
         self.hidden_obstacles: set[Obstacle] = hidden_obstacles
 
-    # def simulate_movement(self, move, time):
-    #     self.real_robot.x += np.cos(self.robot.a) * move[0] * time
-    #     self.real_robot.y += np.sin(self.robot.a) * move[0] * time
-    #     self.real_robot.a += move[1] * time
-    #     self.real_robot.a = np.arctan2(np.sin(self.robot.a), np.cos(self.robot.a))
-    
+    def update_checkpoints(self):
+        proximity_threshold = 0.20  # Define a distance threshold for "nearby"
+        obstacles_red = [obstacle for obstacle in self.obstacles if obstacle.color == 0]
+        obstacles_blue = [obstacle for obstacle in self.obstacles if obstacle.color == 1]
+
+        for obstacle_red in obstacles_red:
+            for obstacle_blue in obstacles_blue:
+                if abs(distance(obstacle_blue, obstacle_red) - 0.055) < 0.07:
+                    center = ((obstacle_red.x + obstacle_blue.x) / 2, (obstacle_red.y + obstacle_blue.y) / 2)
+                    direction = (obstacle_blue.x - obstacle_red.x, obstacle_blue.y - obstacle_red.y)
+                    normal = (-direction[1], direction[0])
+                    side = normal[0] * (self.robot.x - obstacle_red.x) + normal[1] * (self.robot.y - obstacle_red.y)
+
+                    if side > 0:
+                        checkpoint_angle = np.arctan2(normal[1], normal[0])
+                    else:
+                        checkpoint_angle = np.arctan2(-normal[1], -normal[0])
+
+                    offset_distance = 0.05 + self.robot.radius
+                    new_x = center[0] + offset_distance * np.cos(checkpoint_angle)
+                    new_y = center[1] + offset_distance * np.sin(checkpoint_angle)
+                    checkpoint_angle = np.arctan2(np.sin(checkpoint_angle + np.pi), np.cos(checkpoint_angle + np.pi))
+
+                    # Check if there's an existing checkpoint nearby
+                    updated = False
+                    for checkpoint in self.checkpoints:
+                        if np.sqrt((checkpoint.x - new_x)**2 + (checkpoint.y - new_y)**2) < proximity_threshold:
+                            # Adjust existing checkpoint position and angle
+                            checkpoint.x = new_x
+                            checkpoint.y = new_y
+                            checkpoint.a = checkpoint_angle
+                            updated = True
+                            break
+
+                    if not updated:
+                        # Create new checkpoint
+                        new_checkpoint = Checkpoint(new_x, new_y, checkpoint_angle)
+                        self.checkpoints.append(new_checkpoint)
+                        
     def simulate_movement(self, move, time):
         # Introduce noise in linear and angular velocities
-        linear_noise =  np.random.normal(0, 0.2)  # Mean 0, standard deviation 0.05
-        angular_noise =  np.random.normal(0, 0.1) # Mean 0, standard deviation 0.01
+        linear_noise = 0 * np.random.normal(0, 0.05)  # Mean 0, standard deviation 0.05
+        angular_noise = 0 * np.random.normal(0, 0.01) # Mean 0, standard deviation 0.01
 
         # Apply the noise to the movement values
         noisy_linear = move[0] + linear_noise

@@ -84,6 +84,7 @@ class PathExecution:
     def move_through_path(self):
         if distance(self.env.robot, self.env.checkpoints[self.current_checkpoint_idx]) < self.env.robot.distance_allowence:
             angle_difference = self.env.robot.a - self.env.checkpoints[self.current_checkpoint_idx].a
+            angle_difference = np.arctan2(np.sin(angle_difference), np.cos(angle_difference))
             if abs(angle_difference) > self.env.robot.angle_allowence:
                 direction = -np.sign(angle_difference)
                 self.get_to_desired_speed(0)

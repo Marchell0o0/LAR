@@ -71,37 +71,25 @@ def main():
     #                    Checkpoint(0, 0, 0)],
     #                   [Obstacle(1, 0.2, "red"),
     #                    Obstacle(1, -0.2, "blue")], set())  
-     
-
-    # env = Environment(Robot(0, 0, 0), Robot(0, 0, 0),
+    
+    # env = Environment(Robot(-0.3, 0, 0), Robot(-0.3, 0, 0),
     #                     [Checkpoint(1, 0, 0),
     #                      Checkpoint(2, 1, np.pi/4),
     #                      Checkpoint(1, 0, -np.pi)],
-    #                     [],
+    #                      [],
     #                     [Obstacle(0.50, -0.20, 0),
     #                      Obstacle(0.50, 0.20, 1),
     #                      Obstacle(0.50, -0.50, 2),
     #                      Obstacle(1.5, 0.50, 1),
     #                      Obstacle(1.5, 0.75, 2),
     #                      ])
-    
-    env = Environment(Robot(-0.3, 0, 0), Robot(-0.3, 0, 0),
-                        [Checkpoint(1, 0, 0),
-                         Checkpoint(2, 1, np.pi/4),
-                         Checkpoint(1, 0, -np.pi)],
-                         [],
-                        [Obstacle(0.50, -0.20, 0),
-                         Obstacle(0.50, 0.20, 1),
-                         Obstacle(0.50, -0.50, 2),
-                         Obstacle(1.5, 0.50, 1),
-                         Obstacle(1.5, 0.75, 2),
-                         ])
 
-    # env = Environment(Robot(0, 0, 0), 
-    #                     [Checkpoint(1, 0, 0)],
-    #                     [],
-    #                     [Obstacle(0.7, 0, 0)
-    #                      ])
+
+    env = Environment(Robot(0, 0, 0), Robot(0, 0, 0),
+                        [],
+                        [],
+                        [Obstacle(0.5, 0.05, 0),
+                         Obstacle(0.5, -0.05, 1)])
     
     # env = Environment(Robot(0, 0, np.pi/2), 
     #                     [Checkpoint(0, 1, np.pi/2)],
@@ -118,6 +106,15 @@ def main():
     #                     [],
     #                     [Obstacle(0.4, 0.1, 0)
     #                      ])
+    
+    
+    # env = Environment(Robot(0, 0, 0), Robot(0, 0, 0),
+    #                     [Checkpoint(0, 0, np.pi/2),
+    #                      Checkpoint(0, 0, np.pi),
+    #                      Checkpoint(0, 0, -np.pi/2),
+    #                      Checkpoint(0, 0, 0)],
+    #                      [],
+    #                      [])
     
     path_creation = PathCreation(env)
     path_execution = PathExecution(env, path_creation)
@@ -225,6 +222,10 @@ def main():
                 if previous_time == 0:
                     previous_time = time.time()
                 dt = time.time() - previous_time
+                
+                # if next_move[0] == 0 and next_move[1] == 0:
+                    # print("Robot has stopped, making a measurement")
+                    # time.sleep(0.5)
                     
                 odometry_change = env.simulate_movement(next_move, dt)
                 previous_time = time.time()
@@ -234,9 +235,7 @@ def main():
                 if visualization:
                     vis.clock.tick(120)
                     
-                # if next_move[0] == 0 and next_move[1] == 0:
-                #     print("Robot has stopped, making a measurement")
-                #     time.sleep(0.5)
+        
                 #     image = turtle.get_rgb_image()
                 #     pc_image = turtle.get_point_cloud()
 
@@ -259,6 +258,8 @@ def main():
                 # measurements are from mu_t
                 kalman_filter.obstacles_measurement_update(obstacle_measurements)
                 kalman_filter.update_for_visualization()
+                
+                env.update_checkpoints()
                 
                 path_execution.update_path()
                 
