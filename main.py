@@ -150,6 +150,7 @@ def main():
     next_move = (0, 0)
     print("Starting main loop")
     # with cProfile.Profile() as pr:
+    image_rectg = None
     while running:   
         if visualization:       
             # if counter % 10 == 0:
@@ -193,7 +194,8 @@ def main():
 
                 rectg_processor = RectangleProcessor(image,
                                                 pc_image,
-                                                color_settings)
+                                                color_settings,
+                                                color_adapt_queue)
                 detected_rectgs, masked_rectgs, image_rectg, _  = rectg_processor.process_image()
                 obstacle_measurements = detected_rectgs
             else:
@@ -260,8 +262,10 @@ def main():
                 previous_time = time.time()
 
                 
-        # rgb = turtle.get_rgb_image()
-        # cv2.imshow('RGB Camera', rgb)     
+        rgb = turtle.get_rgb_image()
+        # cv2.imshow('RGB Camera', rgb)    
+        if image_rectg is not None: 
+            cv2.imshow('RGB Camera', image_rectg)     
          
         counter += 1
         
