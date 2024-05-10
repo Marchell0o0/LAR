@@ -17,13 +17,20 @@ class PathCreation:
     def create_path(self, robot, goal_checkpoint):
         start_time = time.time()
         path = self.initialize_path(robot, goal_checkpoint)
+        if path:
+            path[0] = Node(robot.x, robot.y)
+            path.append(goal_checkpoint)
         init_time = time.time() - start_time
         
         start_time = time.time()
         path = self.simplify_path(path)
         simplify_time = time.time() - start_time
+        print("Simplified path:")
+        # for node in path:
+            # print(node)
         start_time = time.time()
         path = self.inject_nodes(path)
+        # print("Injected nodes:", path)
         inject_time = time.time() - start_time
         
         print(f"Time to initialize path: {init_time:.4f} seconds")
@@ -37,7 +44,7 @@ class PathCreation:
         # path = self.inject_nodes(path)
         # path = self.smoother(path)
 
-        self.compute_path_metrics(path)
+        # self.compute_path_metrics(path)
         
         return path    
         
@@ -94,9 +101,9 @@ class PathCreation:
                 interpolated_y = start_node.y + t * (end_node.y - start_node.y)
                 new_path.append(Node(interpolated_x, interpolated_y))
 
-            # Add the original end_node to the path (except for the last node)
+            # Add the original end_node to the path
             new_path.append(end_node)
-
+        # new_path.append(path[len(path) - 1])
         return new_path
         
     def smoother(self, path):

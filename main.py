@@ -77,9 +77,9 @@ def main():
     #                      Checkpoint(2, 1, np.pi/4),
     #                      Checkpoint(1, 0, -np.pi)],
     #                      [],
-    #                     [Obstacle(0.50, -0.20, 0),
-    #                      Obstacle(0.50, 0.20, 1),
-    #                      Obstacle(0.50, -0.50, 2),
+    #                     [Obstacle(0.50, -0.15, 0),
+    #                      Obstacle(0.50, 0.15, 1),
+    #                      Obstacle(0.50, -0.30, 2),
     #                      Obstacle(1.5, 0.50, 1),
     #                      Obstacle(1.5, 0.75, 2),
     #                      ])
@@ -101,22 +101,25 @@ def main():
     #                     [],
     #                     [Obstacle(-0.7, -0.7, 0)
     #                      ])
-    # env = Environment(Robot(0, 0, 0), 
+    # env = Environment(Robot(0, 0, 0), Robot(0, 0, 0),
+    #                     [Checkpoint(1, 1, 0),
+    #                      Checkpoint(0, 0, 0)],
     #                     [],
-    #                     [],
-    #                     [Obstacle(0.4, 0.1, 0)
-    #                      ])
+    #                     [Obstacle(0.5, 0.5, 0)])
     
     
     env = Environment(Robot(0, 0, 0), Robot(0, 0, 0),
-                        [Checkpoint(0, 0, np.pi/2),
-                         Checkpoint(0, 0, np.pi),
-                         Checkpoint(0, 0, -np.pi/2),
-                         Checkpoint(0, 0, 0)],
+                        [
+                        # Checkpoint(0, 0, np.pi/2),
+                        #  Checkpoint(0, 0, np.pi),
+                        #  Checkpoint(0, 0, -np.pi/2),
+                        #  Checkpoint(0, 0, 0)
+                        ],
                          [],
                          [Obstacle(1, 0.05, 0),
                          Obstacle(1, -0.05, 1),
-                         Obstacle(1.,1, 1),
+                         Obstacle(0.6, 0.6, 2),
+                         Obstacle(1, 1, 1),
                          Obstacle(0.95, 1.05, 0),
                          Obstacle(0, 1.50, 2),
                          Obstacle(0.05, 1.55, 2),
@@ -135,13 +138,14 @@ def main():
     if turtlebot:
         
         turtle, rate = initialize_turtle()
-        color_settings = ColorSettings()
-        color_settings.calibrate_color(turtle)
+        # color_settings = ColorSettings()
+        # color_settings.calibrate_color(turtle)
     
+        turtle.reset_odometry()
+        previous_odometry = turtle.get_odometry()
     
     running = True
     counter = 0
-    previous_odometry = (env.robot.x, env.robot.y, env.robot.a)
     previous_time =  0
     obstacle_measurements = []
     next_move = (0, 0)
@@ -179,20 +183,21 @@ def main():
             next_move = path_execution.get_current_move()
             turtle.cmd_velocity(angular = next_move[1], linear = next_move[0])
             # move change, record time from here
-            previous_time = time.time()
+            # previous_time = time.time()
             rate.sleep()
 
             if next_move[0] == 0 and next_move[1] == 0:
-                print("Robot has stopped, making a measurement")
-                time.sleep(0.5)
-                image = turtle.get_rgb_image()
-                pc_image = turtle.get_point_cloud()
+                # print("Robot has stopped, making a measurement")
+                # time.sleep(0.5)
+                # image = turtle.get_rgb_image()
+                # pc_image = turtle.get_point_cloud()
 
-                rectg_processor = RectangleProcessor(image,
-                                                pc_image,
-                                                color_settings)
-                detected_rectgs, masked_rectgs, image_rectg  = rectg_processor.process_image()
-                obstacle_measurements = detected_rectgs
+                # rectg_processor = RectangleProcessor(image,
+                #                                 pc_image,
+                #                                 color_settings)
+                # detected_rectgs, masked_rectgs, image_rectg  = rectg_processor.process_image()
+                # obstacle_measurements = detected_rectgs
+                obstacle_measurements = env.get_measurement()
             else:
                 obstacle_measurements = []
 
@@ -213,16 +218,24 @@ def main():
             # update mu_t-1 to mu_t
             kalman_filter.pos_update(odometry_change)
             
+            env.real_robot.x = env.robot.x
+            env.real_robot.y = env.robot.y
+            env.real_robot.a = env.robot.a
+
             # measurements are from mu_t
             kalman_filter.obstacles_measurement_update(obstacle_measurements)
             kalman_filter.update_for_visualization()
             
+            env.update_checkpoints()
+
             path_execution.update_path()
             
         else:
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 running = False
             if counter > 20:
+                # print(env.robot.a)
+                # print("Current path:", path_execution.path)
                 next_move = path_execution.get_current_move()
                 
                 # move change, record time from here

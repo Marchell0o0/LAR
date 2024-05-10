@@ -6,18 +6,18 @@ def distance(point1, point2) -> float:
 class Robot:
     def __init__(self, x, y, a,):
 
-        self.max_detection_range = 1.1 # m
+        self.max_detection_range = 1.5 # m
         self.fov_angle = np.deg2rad(70)
         self.radius = 0.177 # m
-        self.linear_speed = 0.5 # m/s
-        self.linear_acceleration = 1 # m/s^2
-        self.max_angular_speed = np.pi / 4 # rad/s
-        self.minimal_angular_speed = 0.5
+        self.linear_speed = 0.4 # m/s
+        self.linear_acceleration = 0.4 # m/s^2
+        self.max_angular_speed = np.pi / 6 # rad/s
+        self.minimal_angular_speed = 0.0
         self.minimal_linear_speed = 0.0
         
         self.distance_allowence = 0.03
         self.angle_allowence = np.deg2rad(2)
-        self.obstacle_clearence = 0 # m
+        self.obstacle_clearence = 0.045 # m
         self.lookahead_point_distancing = np.deg2rad(5)
         
         self.x = x
@@ -132,6 +132,7 @@ class Environment:
             self.checkpoints[-1].y = new_y
             self.checkpoints[-1].a = checkpoint_angle
             updated = True
+            self.found_finish = True
             return
 
         if not updated:
@@ -139,6 +140,7 @@ class Environment:
             new_checkpoint = Checkpoint(new_x, new_y, checkpoint_angle)
             self.checkpoints.append(new_checkpoint)
             self.found_finish = True
+            print("--------------- Found FINISH ---------------")
         return
 
     def update_checkpoints(self):
@@ -162,8 +164,8 @@ class Environment:
                         
     def simulate_movement(self, move, time):
         # Introduce noise in linear and angular velocities
-        linear_noise =  np.random.normal(0, 0.05)  # Mean 0, standard deviation 0.05
-        angular_noise = np.random.normal(0, 0.01) # Mean 0, standard deviation 0.01
+        linear_noise = 0 * np.random.normal(0, 0.05)  # Mean 0, standard deviation 0.05
+        angular_noise = 0 * np.random.normal(0, 0.1) # Mean 0, standard deviation 0.01
 
         # Apply the noise to the movement values
         noisy_linear = move[0] + linear_noise
@@ -198,8 +200,8 @@ class Environment:
                     -self.real_robot.fov_angle / 2 <= true_angle_to_obstacle <= self.real_robot.fov_angle / 2):
                 
                 # Add noise to distance and angle measurements
-                distance_noise =  np.random.normal(0, 0.03)
-                angle_noise =  np.random.normal(0, np.radians(1))
+                distance_noise = 0 * np.random.normal(0, 0.03)
+                angle_noise = 0 * np.random.normal(0, np.radians(1))
 
                 # Ensure that the measurements are scalar
                 measured_distance = min(self.real_robot.max_detection_range, float(true_distance_to_obstacle + distance_noise))

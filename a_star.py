@@ -106,12 +106,8 @@ class A_star:
         while not frontier.empty():
             current = frontier.get()
 
-            # if current == goal:
             if distance(current, goal) <= 10:
                 path = self.reconstruct_path(came_from, start, current)
-                path.append(actual_goal)
-                # for node in path:
-                    # print(node)
                 return path
 
             for neighbor in self.get_neighbors(current):
