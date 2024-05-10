@@ -4,41 +4,9 @@ import matplotlib.pyplot as plt # type: ignore
 from scipy.ndimage import gaussian_filter1d # type: ignore
 import math
 
-def morphology_preprocessing(masked_hue):
-    # Create a rectangular kernel for morphological operations
-    kernel_size = 2
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_size, kernel_size))
-
-    # Apply morphological opening to remove small white noise
-    opened_mask = cv2.morphologyEx(masked_hue, cv2.MORPH_OPEN, kernel, iterations=1)
-
-    # Optionally apply morphological closing to close small holes within the objects
-    closed_mask = cv2.morphologyEx(opened_mask, cv2.MORPH_CLOSE, kernel, iterations=1)
-    
-    return opened_mask, closed_mask
-
 def color_mask(hsv_image, lowerLimit, upperLimit):
     mask = cv2.inRange(hsv_image, lowerLimit, upperLimit)
     return mask
-
-def get_limits(color):
-    c = np.uint8([[color]])  # BGR values
-    hsvC = cv2.cvtColor(c, cv2.COLOR_BGR2HSV)
-
-    hue = hsvC[0][0][0]  # Get the hue value
-
-    # Handle red hue wrap-around
-    if hue >= 165:  # Upper limit for divided red hue
-        lowerLimit = np.array([hue - 10, 100, 100], dtype=np.uint8)
-        upperLimit = np.array([180, 255, 255], dtype=np.uint8)
-    elif hue <= 15:  # Lower limit for divided red hue
-        lowerLimit = np.array([0, 100, 100], dtype=np.uint8)
-        upperLimit = np.array([hue + 10, 255, 255], dtype=np.uint8)
-    else:
-        lowerLimit = np.array([hue - 10, 100, 100], dtype=np.uint8)
-        upperLimit = np.array([hue + 10, 255, 255], dtype=np.uint8)
-
-    return lowerLimit, upperLimit
 
 def plot_histogram(hist, type):
     plt.figure()
@@ -57,16 +25,6 @@ def plot_histogram(hist, type):
 def smooth_histogram_with_gaussian(hist, sigma = 1):
     hist_smoothed = gaussian_filter1d(hist.ravel(), sigma = sigma)
     return hist_smoothed
-
-# Preprocess the image increasing its contast
-def clahe_preprocess(image):
-    clahe_model = cv2.createCLAHE(clipLimit=1.0, tileGridSize=(1,1))
-    colorimage_b = clahe_model.apply(image[:,:,0])
-    colorimage_g = clahe_model.apply(image[:,:,1])
-    colorimage_r = clahe_model.apply(image[:,:,2])
-    colorimage_clahe = np.stack((colorimage_b,colorimage_g,colorimage_r), axis=2)
-    
-    return colorimage_clahe
     
 def is_within_range(value, range_bounds):
     return range_bounds[0] <= value <= range_bounds[1]
@@ -187,58 +145,25 @@ def generate_general_HSV():
     plt.ylim([0, 255])
     plt.show()
     
-def calculate_angle(y, z):
-    # TODO: rewrite this function
-    """
-    Calculate the angle in radians and distance from the camera to a point.
-    
-    Parameters:
-    y (float): horizontal displacement from the center (in meters)
-    z (float): distance from the camera to the object (in meters)
-
-    Returns:
-    (float, float): tuple of (angle in radians, distance)
-    """
-    
+def calculate_angle(y, z):    
     if np.isnan(y) or np.isnan(z) or z == 0:
-        angle = 0
-        
-        # print("Angle (radians):", angle)
-        # print("Angle (degrees):", int(angle_deg))
-        
-        return angle
+        return None
 
     ratio = y / z
     
     # Valid range for arcsin
-    if ratio < -1 or ratio > 1:
-        angle = 0
-        
-        # print("Angle (radians):", angle)
-        # print("Angle (degrees):", int(angle_deg))
-        
-        return angle
+    if ratio < -1 or ratio > 1:        
+        return None
 
-    # TODO: remove angle_deg
-    angle = np.arcsin(ratio)  # Result is in radians
+    angle = np.arcsin(ratio)
     
     if not isinstance(angle, float):
-        angle = 0
-        return angle
+        return None
     
-    # Convert to degrees for printing out
-    # angle_deg = np.degrees(angle)
-    
-    # print("Angle (radians):", angle)
-    # print("Angle (degrees):", int(angle_deg))
-
+    # Result is in radians
     return angle
 
-def calculate_rectangle_points(cX, cY, height, width, angle_rot, epsilonX=4, epsilonY=3):
-    # TODO: find the way how to do it smarter
-    # was 
-    # if angle_rot < -45:
-    # angle_rot = -(angle_rot + 90) 
+def calculate_rectangle_points(image, cX, cY, height, width, angle_rot, epsilonX=4, epsilonY=3):
     # TODO: maybe there is a better way to implement this 
     if angle_rot < -45:
         angle_rot = -(angle_rot + 90) 
@@ -254,15 +179,19 @@ def calculate_rectangle_points(cX, cY, height, width, angle_rot, epsilonX=4, eps
         ny = x * sin_theta + y * cos_theta + cy
         return int(nx), int(ny)
     
-    def adjust_points_to_image_bounds(points):
-        IMAGE_WIDTH = 640
-        IMAGE_HEIGHT = 480
+    def adjust_points_to_image_bounds(points, image):
+        # Check image resolution
+        image_size = image.shape
+        IMAGE_HEIGHT, IMAGE_WIDTH = image_size[0], image_size[1]
+        # print(f"RGB image width is: {IMAGE_WIDTH}. height: {IMAGE_HEIGHT}")
+        
+        adjusted_points = []
         for x, y in points:
-            if x < 0 or x >= IMAGE_WIDTH or y < 0 or y >= IMAGE_HEIGHT:
-                # print(f"Point {x, y} out of boundaries")
-                x = max(0, min(IMAGE_WIDTH - 1, x))
-                y = max(0, min(IMAGE_HEIGHT - 1, y))
-        return
+            x = max(0, min(IMAGE_WIDTH - 1, x))
+            y = max(0, min(IMAGE_HEIGHT - 1, y))
+            adjusted_points.append((x, y))
+            
+        return adjusted_points
     
     # Center of the rectangle
     center = (cX, cY)
@@ -283,10 +212,10 @@ def calculate_rectangle_points(cX, cY, height, width, angle_rot, epsilonX=4, eps
     points = [lt, rt, lb, rb, top, bottom, left, right]
     rotated_points = [rotate_point(px, py, cX, cY, angle_rot_rad) for (px, py) in points]
          
-    adjust_points_to_image_bounds(rotated_points)        
+    adjusted_points = adjust_points_to_image_bounds(rotated_points, image)        
 
     # Assign rotated points back to meaningful variable names
-    (lt, rt, lb, rb, top, bottom, left, right) = rotated_points
+    (lt, rt, lb, rb, top, bottom, left, right) = adjusted_points
 
     # return {
     #     "center": center,

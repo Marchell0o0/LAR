@@ -12,7 +12,7 @@ from path_creation import PathCreation
 from kalman import KalmanFilter
 
 from Uleh.rectangle import RectangleProcessor
-from Uleh.color import ColorSettings
+from Uleh.color import ColorSettings, ColorHueQueue
 
 # Running pygame without the display to resolve a dependency with OpenGL
 import pygame 
@@ -138,8 +138,12 @@ def main():
     if turtlebot:
         
         turtle, rate = initialize_turtle()
-        # color_settings = ColorSettings()
-        # color_settings.calibrate_color(turtle)
+
+        color_settings = ColorSettings()
+        color_settings.calibrate_color(turtle)
+        
+        color_adapt_queue = ColorHueQueue(color_settings)
+        color_settings.adapt_image_colors(turtle, color_settings, color_adapt_queue)
     
         turtle.reset_odometry()
         previous_odometry = turtle.get_odometry()
@@ -151,6 +155,7 @@ def main():
     next_move = (0, 0)
     print("Starting main loop")
     # with cProfile.Profile() as pr:
+    image_rectg = None
     while running:   
         if visualization:       
             # if counter % 10 == 0:
@@ -192,12 +197,12 @@ def main():
                 # image = turtle.get_rgb_image()
                 # pc_image = turtle.get_point_cloud()
 
-                # rectg_processor = RectangleProcessor(image,
-                #                                 pc_image,
-                #                                 color_settings)
-                # detected_rectgs, masked_rectgs, image_rectg  = rectg_processor.process_image()
-                # obstacle_measurements = detected_rectgs
-                obstacle_measurements = env.get_measurement()
+                rectg_processor = RectangleProcessor(image,
+                                                pc_image,
+                                                color_settings,
+                                                color_adapt_queue)
+                detected_rectgs, masked_rectgs, image_rectg, _  = rectg_processor.process_image()
+                obstacle_measurements = detected_rectgs
             else:
                 obstacle_measurements = []
 
@@ -270,8 +275,10 @@ def main():
                 previous_time = time.time()
 
                 
-        # rgb = turtle.get_rgb_image()
-        # cv2.imshow('RGB Camera', rgb)     
+        rgb = turtle.get_rgb_image()
+        # cv2.imshow('RGB Camera', rgb)    
+        if image_rectg is not None: 
+            cv2.imshow('RGB Camera', image_rectg)     
          
         counter += 1
         
