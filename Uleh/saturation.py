@@ -1,6 +1,6 @@
 import cv2 # type: ignore
 import numpy as np # type: ignore
-# from scipy.signal import find_peaks # type: ignore
+from scipy.signal import find_peaks # type: ignore
 
 from Uleh.utils import smooth_histogram_with_gaussian
 
@@ -41,19 +41,19 @@ def calculate_saturation_threshold_green(image, saturation_range):
 
     # Use find_peaks to find the indexes of these peaks (valleys in the original histogram)
     
-    # peaks, _ = find_peaks(inverted_histogram)
+    peaks, _ = find_peaks(inverted_histogram)
 
-    # # plot_histogram(inverted_histogram, "saturation")
+    # plot_histogram(inverted_histogram, "saturation")
     
-    # if peaks.size > 0:
-    #     #TODO: remove hardcoding saturation for green
-    #     # print("Saturation value for green: ", peaks[0] + saturation_range[0])
-    #     # return peaks[0] + saturation_range[0]
+    if peaks.size > 0:
+        #TODO: remove hardcoding saturation for green
+        # print("Saturation value from PEAK for GREEN: ", peaks[0] + saturation_range[0])
+        return peaks[0] + saturation_range[0]
         
-    #     # print("Saturation value for green: ", 70)
-    #     return 70
-    # else:
-    #     # print("Defaut saturation value returned: 40")
-    #     return 70
+        # print("Saturation value for green: ", 70)
+        # return 70
+    else:
+        # print("Defaut saturation value from PEAK for GREEN returned: 70")
+        return 70
     
-    return 70
+    # return 70

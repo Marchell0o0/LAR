@@ -12,7 +12,7 @@ from path_creation import PathCreation
 from kalman import KalmanFilter
 
 from Uleh.rectangle import RectangleProcessor
-from Uleh.color import ColorSettings
+from Uleh.color import ColorSettings, ColorHueQueue
 
 # Running pygame without the display to resolve a dependency with OpenGL
 import pygame 
@@ -137,6 +137,9 @@ def main():
         turtle, rate = initialize_turtle()
         color_settings = ColorSettings()
         color_settings.calibrate_color(turtle)
+        
+        color_adapt_queue = ColorHueQueue(color_settings)
+        color_settings.adapt_image_colors(turtle, color_settings, color_adapt_queue)
     
     
     running = True
@@ -191,7 +194,7 @@ def main():
                 rectg_processor = RectangleProcessor(image,
                                                 pc_image,
                                                 color_settings)
-                detected_rectgs, masked_rectgs, image_rectg  = rectg_processor.process_image()
+                detected_rectgs, masked_rectgs, image_rectg, _  = rectg_processor.process_image()
                 obstacle_measurements = detected_rectgs
             else:
                 obstacle_measurements = []

@@ -59,7 +59,7 @@ def find_point_pc_coords(pc_image, x, y):
     
     if y < 0 or y >= height or x < 0 or x >= width:
         # print(f"X and/or Y out of boundaries for pc: {x, y}")
-        return 0, 0, 0
+        return None, None, None
     
     y_value = pc_image[y, x, 0] 
     x_value = pc_image[y, x, 1] 
