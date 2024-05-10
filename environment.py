@@ -7,18 +7,19 @@ class Robot:
     def __init__(self, x, y, a,):
 
         self.max_detection_range = 1.5 # m
-        self.fov_angle = np.deg2rad(70)
+        self.fov_angle = np.deg2rad(60)
         self.radius = 0.177 # m
-        self.linear_speed = 0.4 # m/s
+        self.linear_speed = 0.2 # m/s
         self.linear_acceleration = 0.4 # m/s^2
-        self.max_angular_speed = np.pi / 6 # rad/s
-        self.minimal_angular_speed = 0.0
-        self.minimal_linear_speed = 0.0
+        self.max_angular_speed = np.pi / 8 # rad/s
+        self.min_angular_speed = np.pi / 16
+        self.min_linear_speed = 0.05
         
-        self.distance_allowence = 0.03
-        self.angle_allowence = np.deg2rad(2)
+        self.distance_allowence = 0.08
+        self.path_update_distance = 0.04
+        self.angular_speed_distance_allowence = 0.06
+        self.angle_allowence = np.deg2rad(1)
         self.obstacle_clearence = 0.045 # m
-        self.lookahead_point_distancing = np.deg2rad(5)
         
         self.x = x
         self.y = y
@@ -57,7 +58,7 @@ class Environment:
         self.hidden_obstacles: set[Obstacle] = hidden_obstacles
 
     def add_checkpoint_for_obstacle_pair(self, obstacle_red, obstacle_blue):
-        proximity_threshold = 0.20  # up to  cm is the same checkpoint, probably should be higher
+        proximity_threshold = 0.30  # up to  cm is the same checkpoint, probably should be higher
         center = ((obstacle_red.x + obstacle_blue.x) / 2, (obstacle_red.y + obstacle_blue.y) / 2)
         direction = (obstacle_blue.x - obstacle_red.x, obstacle_blue.y - obstacle_red.y)
         normal = (-direction[1], direction[0])
@@ -70,7 +71,7 @@ class Environment:
             checkpoint_angle = np.arctan2(-normal[1], -normal[0])
             turned_checkpoint_angle = checkpoint_angle - np.pi / 2
 
-        offset_distance = 0.05 + self.robot.radius
+        offset_distance = 0.05 + self.robot.radius + obstacle_red.radius + 0.05
         new_checkpoint = Checkpoint(center[0] + offset_distance * np.cos(checkpoint_angle),
                                     center[1] + offset_distance * np.sin(checkpoint_angle),
                                     np.arctan2(np.sin(checkpoint_angle + np.pi), np.cos(checkpoint_angle + np.pi)))
@@ -94,16 +95,13 @@ class Environment:
                 updated = True
                 break
 
-
-                
-
         if not updated and not self.found_finish:
             self.checkpoints.append(new_checkpoint)
             self.primary_checkpoints_idxs.append(len(self.checkpoints) - 1)
             self.checkpoints.append(turned_checkpoint)
 
-
-        return
+            return True
+        return False
 
     def add_finish(self, obstacle_one, obstacle_two):
         proximity_threshold = 0.20  # up to 20 cm is the same checkpoint, probably should be higher
@@ -117,7 +115,7 @@ class Environment:
         else:
             checkpoint_angle = np.arctan2(-normal[1], -normal[0])
 
-        offset_distance = 0.05 + self.robot.radius
+        offset_distance = 0.05 + self.robot.radius + obstacle_one.radius + 0.05
         new_x = center[0] + offset_distance * np.cos(checkpoint_angle)
         new_y = center[1] + offset_distance * np.sin(checkpoint_angle)
         checkpoint_angle = np.arctan2(np.sin(checkpoint_angle + np.pi), np.cos(checkpoint_angle + np.pi))
@@ -147,11 +145,12 @@ class Environment:
         obstacles_red = [obstacle for obstacle in self.obstacles if obstacle.color == 0]
         obstacles_blue = [obstacle for obstacle in self.obstacles if obstacle.color == 1]
         obstacles_green = [obstacle for obstacle in self.obstacles if obstacle.color == 2]
-
+        added_new = False
         for obstacle_red in obstacles_red:
             for obstacle_blue in obstacles_blue:
                 if abs(distance(obstacle_blue, obstacle_red) - 0.055) < 0.1:
-                    self.add_checkpoint_for_obstacle_pair(obstacle_red, obstacle_blue)
+                    if self.add_checkpoint_for_obstacle_pair(obstacle_red, obstacle_blue):
+                        added_new = True
 
         for i in range(len(obstacles_green)):
             for j in range(len(obstacles_green)):
@@ -159,8 +158,7 @@ class Environment:
                     continue
                 if abs(distance(obstacles_green[i], obstacles_green[j]) - 0.055) < 0.1:
                     self.add_finish(obstacles_green[i], obstacles_green[j])
-                    return
-                    
+        return added_new                    
                         
     def simulate_movement(self, move, time):
         # Introduce noise in linear and angular velocities

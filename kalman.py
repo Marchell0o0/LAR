@@ -6,10 +6,11 @@ class KalmanFilter:
         self.env = env
         self.sigma = 0.01*np.eye(3, dtype=float)
         self.R = np.diag([0.0001, 0.0001, 0.001]) # sigma x, y, a
-        self.Q_obstacles = np.diag([0.05, np.deg2rad(1), 0.001]) # sigma r, phi, color
+        self.Q_obstacles = np.diag([0.05, np.deg2rad(0.5), 0.0001]) # sigma r, phi, color
         
         # acceptable mahalanobis distance
-        self.alpha = 0.4
+        self.alpha = 4
+        self.alpha_for_green = 0.2
         
         self.mu = np.array([[self.env.robot.x],[self.env.robot.y],[self.env.robot.a]], dtype=np.float64)
 
@@ -123,9 +124,14 @@ class KalmanFilter:
             min_distance = float('inf')
             for idx, obstacle in enumerate(self.env.obstacles):
                 mahalanobis_distance = self.compute_mahalanobis_distance(z, idx * 3 + 3)
-                if mahalanobis_distance < self.alpha and mahalanobis_distance < min_distance:
-                    min_distance = mahalanobis_distance
-                    closest_idx = idx * 3 + 3
+                if color == 2 and obstacle.color == 2:
+                    if mahalanobis_distance < self.alpha_for_green and mahalanobis_distance < min_distance:
+                        min_distance = mahalanobis_distance
+                        closest_idx = idx * 3 + 3
+                else:
+                    if mahalanobis_distance < self.alpha and mahalanobis_distance < min_distance:
+                        min_distance = mahalanobis_distance
+                        closest_idx = idx * 3 + 3
                     
             if closest_idx == -1:
                 print("Adding new obstacle")
@@ -140,7 +146,7 @@ class KalmanFilter:
                 # Expand the covariance matrix
                 sigma_extension = np.zeros((new_size, new_size))
                 sigma_extension[:self.sigma.shape[0], :self.sigma.shape[1]] = self.sigma
-                new_diag = 10 * np.eye(3)
+                new_diag = 100 * np.eye(3)
                 sigma_extension[-3:, -3:] = new_diag
                 self.sigma = sigma_extension
                 

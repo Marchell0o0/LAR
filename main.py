@@ -36,8 +36,8 @@ def initialize_turtle():
     # turtle.wait_for_depth_image()
     # print("Depth image received")
     
-    # turtle.wait_for_odometry()
-    # print("Odometry received")
+    turtle.wait_for_odometry()
+    print("Odometry received")
     
     turtle.reset_odometry()
     turtle.get_odometry()
@@ -108,6 +108,24 @@ def main():
     #                     [Obstacle(0.5, 0.5, 0)])
     
     
+    # env = Environment(Robot(0, 0, 0), Robot(0, 0, 0),
+    #                     [
+    #                     # Checkpoint(0, 0, np.pi/2),
+    #                     #  Checkpoint(0, 0, np.pi),
+    #                     #  Checkpoint(0, 0, -np.pi/2),
+    #                     #  Checkpoint(0, 0, 0)
+    #                     ],
+    #                      [],
+    #                      [Obstacle(1, 0.05, 0),
+    #                      Obstacle(1, -0.05, 1),
+    #                      Obstacle(0.6, 0.6, 2),
+    #                      Obstacle(1, 1, 1),
+    #                      Obstacle(0.95, 1.05, 0),
+    #                      Obstacle(0, 1.50, 2),
+    #                      Obstacle(0.05, 1.55, 2),
+    #                      Obstacle(-1.25, 0, 2),
+    #                      Obstacle(-1.35, 0, 2)])
+
     env = Environment(Robot(0, 0, 0), Robot(0, 0, 0),
                         [
                         # Checkpoint(0, 0, np.pi/2),
@@ -116,15 +134,8 @@ def main():
                         #  Checkpoint(0, 0, 0)
                         ],
                          [],
-                         [Obstacle(1, 0.05, 0),
-                         Obstacle(1, -0.05, 1),
-                         Obstacle(0.6, 0.6, 2),
-                         Obstacle(1, 1, 1),
-                         Obstacle(0.95, 1.05, 0),
-                         Obstacle(0, 1.50, 2),
-                         Obstacle(0.05, 1.55, 2),
-                         Obstacle(-1.25, 0, 2),
-                         Obstacle(-1.35, 0, 2)])
+                         [])
+    
     
     path_creation = PathCreation(env)
     path_execution = PathExecution(env, path_creation)
@@ -143,7 +154,7 @@ def main():
         color_settings.calibrate_color(turtle)
         
         color_adapt_queue = ColorHueQueue(color_settings)
-        color_settings.adapt_image_colors(turtle, color_settings, color_adapt_queue)
+        # color_settings.adapt_image_colors(turtle, color_settings, color_adapt_queue)
     
         turtle.reset_odometry()
         previous_odometry = turtle.get_odometry()
@@ -153,49 +164,33 @@ def main():
     previous_time =  0
     obstacle_measurements = []
     next_move = (0, 0)
+    counter_since_new_checkpoint = 0
     print("Starting main loop")
-    # with cProfile.Profile() as pr:
-    image_rectg = None
     while running:   
         if visualization:       
-            # if counter % 10 == 0:
-            # print("Current obstacles before drawing")
-            # for obstacle in env.obstacles:
-            # print(obstacle)
-            vis.screen.fill((0, 0, 0))
-            vis.draw_everything()
-
-            vis.show_cv2()
+            if counter % 2 == 0:
+                vis.screen.fill((0, 0, 0))
+                vis.draw_everything()
+                vis.show_cv2()
         
 
         if turtlebot:
             if (cv2.waitKey(1) & 0xFF == ord('q')) or turtle.is_shutting_down():
                 running = False
             
-            # compute next move
-            
-            # execute the move
-            
-            # get obstacle measurement
-            # get odometry as change from previous pos
-            
-            # kalman predict from odometry -> mu_t
-            # and obstacles -> obstacle measurement after the move -> mu_t
-            
-            # update path
-            
-            
             next_move = path_execution.get_current_move()
-            turtle.cmd_velocity(angular = next_move[1], linear = next_move[0])
-            # move change, record time from here
-            # previous_time = time.time()
+            if counter_since_new_checkpoint > 20:
+                turtle.cmd_velocity(angular = next_move[1], linear = next_move[0])
+            else:
+                turtle.cmd_velocity(angular = 0, linear = 0)
+
             rate.sleep()
 
-            if next_move[0] == 0 and next_move[1] == 0:
-                # print("Robot has stopped, making a measurement")
-                # time.sleep(0.5)
-                # image = turtle.get_rgb_image()
-                # pc_image = turtle.get_point_cloud()
+
+            # robot isn't moving quickly
+            if next_move[1] < 0.1:
+                image = turtle.get_rgb_image()
+                pc_image = turtle.get_point_cloud()
 
                 rectg_processor = RectangleProcessor(image,
                                                 pc_image,
@@ -203,38 +198,34 @@ def main():
                                                 color_adapt_queue)
                 detected_rectgs, masked_rectgs, image_rectg, _  = rectg_processor.process_image()
                 obstacle_measurements = detected_rectgs
+                if image_rectg is not None: 
+                    cv2.imshow('RGB Camera', image_rectg)    
+                # print(obstacle_measurements)
             else:
                 obstacle_measurements = []
+                # print("Turning too fast")
 
             current_odometry = turtle.get_odometry()
             odometry_change = current_odometry - previous_odometry
             # start recording odometry changes right after using it
             previous_odometry = current_odometry
 
-            # need to know the time here, so hope the rest of the cycle
-            # until previous time update takes very little time
-            # |
-            # V lines should be very quick, robot is moving but it's not accounted for in the kalman
-            # TODO Check how much of a problem that is
-            
-            # Or maybe don't need it at all
-            # dt = time.time() - previous_time
-            
             # update mu_t-1 to mu_t
             kalman_filter.pos_update(odometry_change)
-            
-            env.real_robot.x = env.robot.x
-            env.real_robot.y = env.robot.y
-            env.real_robot.a = env.robot.a
 
             # measurements are from mu_t
             kalman_filter.obstacles_measurement_update(obstacle_measurements)
             kalman_filter.update_for_visualization()
             
-            env.update_checkpoints()
+            if env.update_checkpoints():
+                counter_since_new_checkpoint = 0
 
             path_execution.update_path()
+            counter_since_new_checkpoint += 1
             
+         
+         
+
         else:
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 running = False
@@ -274,20 +265,9 @@ def main():
                 path_execution.update_path()
                 previous_time = time.time()
 
-                
-        rgb = turtle.get_rgb_image()
-        # cv2.imshow('RGB Camera', rgb)    
-        if image_rectg is not None: 
-            cv2.imshow('RGB Camera', image_rectg)     
-         
+       
         counter += 1
         
-            
-    # stats = pstats.Stats(pr)
-    # stats.sort_stats(pstats.SortKey.TIME)
-    # # stats.print_stats()
-    # stats.dump_stats(filename='profiling.prof')
-                
     print("Cycles:", counter)
     cv2.destroyAllWindows()
     pygame.quit()

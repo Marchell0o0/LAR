@@ -122,7 +122,7 @@ class RectangleProcessor:
                         min_vertices = 5,
                         min_area = 800,
                         aspect_ratio_range = [2, 8],
-                        y_offset=0.04):
+                        y_offset=-0.08):
         result_mask = np.zeros_like(image_mask)
         original_image = image_labels.copy()
 
@@ -264,6 +264,13 @@ class RectangleProcessor:
                 # if (self.color_settings.calib_values["blue"]["color_reassigned"] == True and
                 # self.color_settings.calib_values["red"]["color_reassigned"] == True):
                 
+                # skip nonvalid measurements
+                if 0.3 > rectg.distance or 2 < rectg.distance:
+                    # print("skipping a measured obstacle")
+                    continue
+                
+
+
                 # R
                 if rectg.color == 250:
                     rectg_color = 0
@@ -276,7 +283,7 @@ class RectangleProcessor:
                 # Unknown color    
                 else:
                     rectg_color = 3
-                cylinders.append((rectg.distance, rectg.angle_pos, rectg_color))
+                cylinders.append((rectg.distance + 0.025, -rectg.angle_pos, rectg_color))
             
             if self.show_image == True:
                 # cv2.imshow('Masked labels', masked_labels)

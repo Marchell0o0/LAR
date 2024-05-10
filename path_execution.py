@@ -29,7 +29,7 @@ class PathExecution:
     def update_path(self):
         if not self.path:
             return 
-        if distance(self.path[-1], self.env.checkpoints[self.current_checkpoint_idx]) > self.env.robot.distance_allowence:
+        if distance(self.path[-1], self.env.checkpoints[self.current_checkpoint_idx]) > self.env.robot.path_update_distance:
             self.path = []
             return
         for node in self.path:
@@ -135,18 +135,27 @@ class PathExecution:
         if distance(self.env.robot, self.env.checkpoints[self.current_checkpoint_idx]) < self.env.robot.distance_allowence:
             angle_difference = self.env.robot.a - self.env.checkpoints[self.current_checkpoint_idx].a
             angle_difference = np.arctan2(np.sin(angle_difference), np.cos(angle_difference))
+
+            # Calculate the angular speed based on how close the robot is to the desired angle
             if abs(angle_difference) > self.env.robot.angle_allowence:
-                # if abs(angle_difference) < np.deg2rad(5):
-                    # angular_speed = self.env.robot.minimal_angular_speed
-                # else:
-                angular_speed = self.env.robot.max_angular_speed 
+                # Normalize the difference within the range of 0 to 1
+                normalized_diff = abs(angle_difference) / (np.pi / 4)
+                
+                # Linear interpolation between max and min angular speed
+                angular_speed = (self.env.robot.max_angular_speed * 2 - self.env.robot.min_angular_speed) * normalized_diff + self.env.robot.min_angular_speed
+                
+                # Ensure angular speed does not drop below the minimum
+                angular_speed = min(angular_speed, self.env.robot.max_angular_speed * 2)
+                angular_speed = max(angular_speed, self.env.robot.min_angular_speed)
+
                 direction = -np.sign(angle_difference)
                 self.get_to_desired_speed(0)
                 return (self.current_speed, direction * angular_speed)
-            
+
             self.current_checkpoint_idx += 1
             self.path = []
             return (0, 0)
+
         
         self.update_lookahead_point()
 
@@ -167,25 +176,25 @@ class PathExecution:
         lookahead_curvature = (2*x) / (self.current_lookahead_distance**2)
         
         if abs(between_angle) > np.pi / 2:
-            linear_speed_scale = 0
+            linear_speed = 0
         else:
             linear_speed_scale = ((np.pi / 2) - abs(between_angle)) / \
                 (np.pi / 2) * self.current_lookahead_distance / self.max_lookahead_distance
-            
-        
-        linear_speed = self.env.robot.linear_speed * linear_speed_scale
-        linear_speed = max(self.env.robot.minimal_linear_speed, linear_speed)
+            linear_speed = self.env.robot.linear_speed * linear_speed_scale
+            linear_speed = max(self.env.robot.min_linear_speed, linear_speed)
 
         self.get_to_desired_speed(linear_speed)
         
-        if abs(between_angle) < np.pi / 2:
-            angular_speed = self.env.robot.max_angular_speed * lookahead_curvature
+        if self.current_lookahead_distance < self.env.robot.angular_speed_distance_allowence:
+            angular_speed = 0
         else:
-            angular_speed = self.env.robot.max_angular_speed
-            
-        angular_speed = min(angular_speed, self.env.robot.max_angular_speed)
-        angular_speed = max(angular_speed, self.env.robot.minimal_angular_speed)
-        angular_speed = direction * angular_speed
+            if abs(between_angle) < np.pi / 2:
+                angular_speed = self.env.robot.max_angular_speed * lookahead_curvature
+            else:
+                angular_speed = self.env.robot.max_angular_speed
+                
+            angular_speed = min(angular_speed, self.env.robot.max_angular_speed)
+            angular_speed = direction * angular_speed
         return(self.current_speed, angular_speed)
         
     def get_current_move(self):
@@ -204,7 +213,7 @@ class PathExecution:
             else:
                 if not self.env.found_finish and self.counter > 10:
                     print("Adding a new checkpoint for exploration")
-                    exploration_distance = 0.40
+                    exploration_distance = 0.30
                     # self.get_to_desired_speed(0)
                     new_x = self.env.robot.x + np.cos(self.env.robot.a) * exploration_distance
                     new_y = self.env.robot.y + np.sin(self.env.robot.a) * exploration_distance
