@@ -20,20 +20,20 @@ class PathCreation:
         print("--------------- Creating path ---------------")
         start_time = time.time()
         path = self.initialize_path(robot, goal_checkpoint)
-        if path:
-            path[0] = Node(robot.x, robot.y)
-            path.append(goal_checkpoint)
+        if not path:
+            return path
+
+        path[0] = Node(robot.x, robot.y)
+        path[-1] = goal_checkpoint
+
         init_time = time.time() - start_time
 
         start_time = time.time()
         path = self.simplify_path(path)
         simplify_time = time.time() - start_time
-        # print("Simplified path:")
-        # for node in path:
-        # print(node)
+
         start_time = time.time()
         path = self.inject_nodes(path)
-        # print("Injected nodes:", path)
         inject_time = time.time() - start_time
 
         # print(f"Time to initialize path: {init_time:.4f} seconds")
@@ -53,15 +53,15 @@ class PathCreation:
 
     def initialize_path(self, robot, goal_checkpoint):
         start = Node(robot.x, robot.y)
-        # goal = Node(goal_checkpoint.x, goal_checkpoint.y)
+        goal = Node(goal_checkpoint.x, goal_checkpoint.y)
         print("Straight path: ", end='')
         if self.straight_path_exists(start, goal_checkpoint):
             print("NO COLLISION")
-            return [start, goal_checkpoint]
+            return [start, goal]
         print("COLLISION")
 
         print("A*:        ", end='')
-        path = self.a_star.search(goal_checkpoint)
+        path = self.a_star.search(goal)
         if path:
             print("    FOUND")
             return path
@@ -83,6 +83,11 @@ class PathCreation:
                 j -= 1
             simplified_path.append(path[i])
             i += 1
+
+        # Ensure the last point is included
+        if simplified_path[-1] != path[-1]:
+            simplified_path.append(path[-1])
+
         return simplified_path
 
     def inject_nodes(self, path):

@@ -23,10 +23,7 @@ os.environ['SDL_VIDEODRIVER'] = 'dummy'
 def initialize_turtle():
     from robolab_turtlebot import Turtlebot, get_time, Rate
 
-    # turtle = Turtlebot(rgb = True, depth = True, pc = True)
-
-    # turtle = Turtlebot()
-    turtle = Turtlebot(rgb=True, pc=True)
+    turtle = Turtlebot(rgb=True, pc=True, depth=False)
 
     turtle.wait_for_rgb_image()
     print('Rgb image received')
@@ -48,9 +45,9 @@ def initialize_turtle():
 
 
 def main():
-    print("Running main.py")
-    print(f"PID: {os.getpid()}")
-    input("Press Enter to continue...")
+    # print("Running main.py")
+    # print(f"PID: {os.getpid()}")
+    # input("Press Enter to continue...")
 
     visualization = False
     turtlebot = False
@@ -120,11 +117,11 @@ def main():
                       [],
                       [Obstacle(1, 0.05, 0),
                        Obstacle(1, -0.05, 1),
-                       Obstacle(0.6, 0.6, 2),
-                       Obstacle(1, 1, 1),
-                       Obstacle(0.95, 1.05, 0),
-                       Obstacle(0, 1.50, 2),
-                       Obstacle(0.05, 1.55, 2),
+                       Obstacle(0.5, 0.6, 2),
+                       Obstacle(1.45, 1.3, 0),
+                       Obstacle(1.50, 1.25, 1),
+                       Obstacle(0, 1.60, 2),
+                       Obstacle(0.05, 1.65, 2),
                        Obstacle(-1.25, 0, 2),
                        Obstacle(-1.35, 0, 2)])
 
@@ -159,17 +156,16 @@ def main():
         turtle.reset_odometry()
         previous_odometry = turtle.get_odometry()
 
-    running = True
-    counter = 0
+    running: bool = True
+    counter: int = 0
     previous_time = 0
     obstacle_measurements = []
     next_move = (0, 0)
-    counter_since_new_checkpoint = 0
+    counter_since_new_checkpoint: int = 0
     print("Starting main loop")
     while running:
         if visualization:
             if counter % 2 == 0:
-                vis.screen.fill((0, 0, 0))
                 vis.draw_everything()
                 vis.show_cv2()
 
@@ -179,7 +175,9 @@ def main():
 
             next_move = path_execution.get_current_move()
             if counter_since_new_checkpoint > 20:
-                turtle.cmd_velocity(angular=next_move[1], linear=next_move[0])
+                # turtle.cmd_velocity(angular=next_move[1], linear=next_move[0])
+                # TODO TEST THIS
+                turtle.cmd_velocity(angular=0.91*next_move[1], linear=next_move[0])
             else:
                 turtle.cmd_velocity(angular=0, linear=0)
 
@@ -215,14 +213,11 @@ def main():
             kalman_filter.obstacles_measurement_update(obstacle_measurements)
             kalman_filter.update_for_visualization()
 
-            if env.update_checkpoints():
+            if env.update_checkpoints(path_execution.current_checkpoint_idx):
                 counter_since_new_checkpoint = 0
 
             path_execution.update_path()
             counter_since_new_checkpoint += 1
-
-
-
 
         else:
             if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -231,7 +226,6 @@ def main():
                 # print(env.robot.a)
                 # print("Current path:", path_execution.path)
                 next_move = path_execution.get_current_move()
-
                 # move change, record time from here
                 if previous_time == 0:
                     previous_time = time.time()
@@ -258,7 +252,7 @@ def main():
                 kalman_filter.obstacles_measurement_update(obstacle_measurements)
                 kalman_filter.update_for_visualization()
 
-                env.update_checkpoints()
+                env.update_checkpoints(path_execution.current_checkpoint_idx)
 
                 path_execution.update_path()
                 previous_time = time.time()

@@ -33,6 +33,7 @@ class PathExecution:
         if distance(self.path[-1],
                     self.env.checkpoints[self.current_checkpoint_idx]) > self.env.robot.path_update_distance:
             self.path = []
+            print("Checkpoint is too far away from the path end")
             return
         for node in self.path:
             for obstacle in self.env.obstacles:
@@ -133,15 +134,15 @@ class PathExecution:
                     self.env.checkpoints[self.current_checkpoint_idx]) < self.env.robot.distance_allowance:
             angle_difference = self.env.robot.a - self.env.checkpoints[self.current_checkpoint_idx].a
             angle_difference = np.arctan2(np.sin(angle_difference), np.cos(angle_difference))
-
+            print("Distance to the checkpoint is small enough")
             # Calculate the angular speed based on how close the robot is to the desired angle
             if abs(angle_difference) > self.env.robot.angle_allowance:
                 # Normalize the difference within the range of 0 to 1
                 normalized_diff = abs(angle_difference) / (np.pi / 4)
 
                 # Linear interpolation between max and min angular speed
-                angular_speed = (
-                                        self.env.robot.max_angular_speed * 2 - self.env.robot.min_angular_speed) * normalized_diff + self.env.robot.min_angular_speed
+                angular_speed = ((self.env.robot.max_angular_speed * 2 - self.env.robot.min_angular_speed)
+                                 * normalized_diff + self.env.robot.min_angular_speed)
 
                 # Ensure angular speed does not drop below the minimum
                 angular_speed = min(angular_speed, self.env.robot.max_angular_speed * 2)
@@ -183,22 +184,19 @@ class PathExecution:
 
         self.get_to_desired_speed(linear_speed)
 
-        if self.current_lookahead_distance < self.env.robot.angular_speed_distance_allowance:
-            angular_speed = 0
+        # if self.current_lookahead_distance < self.env.robot.angular_speed_distance_allowance:
+            # angular_speed = 0
+        # else:
+        if abs(between_angle) < np.pi / 2:
+            angular_speed = self.env.robot.max_angular_speed * lookahead_curvature
         else:
-            if abs(between_angle) < np.pi / 2:
-                angular_speed = self.env.robot.max_angular_speed * lookahead_curvature
-            else:
-                angular_speed = self.env.robot.max_angular_speed
+            angular_speed = self.env.robot.max_angular_speed
 
-            angular_speed = min(angular_speed, self.env.robot.max_angular_speed)
-            angular_speed = direction * angular_speed
+        angular_speed = min(angular_speed, self.env.robot.max_angular_speed)
+        angular_speed = direction * angular_speed
         return self.current_speed, angular_speed
 
     def get_current_move(self):
-        # if self.env.found_finish:
-        #     self.get_to_desired_speed(0)
-        #     return (self.current_speed, 0)
         if not self.path:
             # Still have checkpoints to go through
             if self.current_checkpoint_idx < len(self.env.checkpoints):
@@ -216,7 +214,14 @@ class PathExecution:
                     new_x = self.env.robot.x + np.cos(self.env.robot.a) * exploration_distance
                     new_y = self.env.robot.y + np.sin(self.env.robot.a) * exploration_distance
                     new_a = float(self.env.robot.a)
-                    self.env.checkpoints.append(Checkpoint(new_x, new_y, new_a))
+                    new_checkpoint = Checkpoint(new_x, new_y, new_a)
+                    turn_right = Checkpoint(new_x, new_y, new_a - np.pi / 4)
+                    turn_left = Checkpoint(new_x, new_y, new_a + np.pi / 4)
+                    self.env.checkpoints.append(new_checkpoint)
+                    self.env.checkpoints.append(turn_right)
+                    self.env.checkpoints.append(turn_left)
+                    self.env.checkpoints.append(new_checkpoint)
+
                     self.counter = 0
                     return (self.current_speed, 0)
                 else:

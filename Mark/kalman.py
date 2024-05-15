@@ -11,7 +11,7 @@ class KalmanFilter:
 
         # acceptable mahalanobis distance
         self.alpha = 4
-        self.alpha_for_green = 0.2
+        self.alpha_for_green = 0.1
 
         self.mu = np.array([[self.env.robot.x], [self.env.robot.y], [self.env.robot.a]], dtype=np.float64)
 

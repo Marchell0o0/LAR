@@ -19,7 +19,8 @@ class PriorityQueue:
     def empty(self):
         return not self.elements
 
-    def heuristic(self, node1, node2):
+    @staticmethod
+    def heuristic(node1, node2):
         # Euclidean distance as a simple heuristic
         return distance(node1, node2)
 
@@ -42,9 +43,9 @@ class Node:
     def __hash__(self):
         return hash((self.x, self.y))
 
+    @property
     def __str__(self) -> str:
-        return f'Node: ({self.x:.4f},{self.y:.4f}), \
-curvature:{self.curvature:.4f}'
+        return f"Node: ({self.x:.4f},{self.y:.4f}), curvature:{self.curvature:.4f}"
 
 
 def distance(point1: Node, point2: Node):
@@ -55,7 +56,8 @@ class AStar:
     def __init__(self, env):
         self.env = env
 
-    def heuristic(self, node: Node, goal: Node):
+    @staticmethod
+    def heuristic(node: Node, goal: Node):
         return distance(node, goal)
 
     def get_neighbors(self, node):

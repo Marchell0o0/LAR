@@ -14,9 +14,9 @@ class RobotVisualization:
         pygame.init()
         # self.base_size = (3840, 3840) # 4K square
         # self.base_size = (1080, 1080)
-        # self.base_size = (500, 500)
+        self.base_size = (500, 500)
         # self.base_size = (400, 400)
-        self.base_size = (250, 250)
+        # self.base_size = (250, 250)
         self.screen = pygame.display.set_mode(self.base_size)
         self.clock = pygame.time.Clock()
 
@@ -313,7 +313,7 @@ class RobotVisualization:
 
     def initialize_grid(self):
         self.grid_surface = pygame.Surface(self.screen.get_size())
-        # self.grid_surface.fill((255, 255, 255))  # Fill background, adjust color as needed
+        self.grid_surface.fill((255, 255, 255))  # Fill background, adjust color as needed
 
         grid_color = (150, 150, 150)  # Light grey
         spacing = 0.25  # cm for now

@@ -63,91 +63,86 @@ class Environment:
 
         self.hidden_obstacles: set[Obstacle] = hidden_obstacles
 
-    def add_checkpoint_for_obstacle_pair(self, obstacle_red, obstacle_blue):
-        proximity_threshold = 0.30  # up to  cm is the same checkpoint, probably should be higher
-        center = ((obstacle_red.x + obstacle_blue.x) / 2, (obstacle_red.y + obstacle_blue.y) / 2)
-        direction = (obstacle_blue.x - obstacle_red.x, obstacle_blue.y - obstacle_red.y)
-        normal = (-direction[1], direction[0])
-        side = normal[0] * (self.robot.x - obstacle_red.x) + normal[1] * (self.robot.y - obstacle_red.y)
+    def generate_checkpoints_for_exploration(self, main_checkpoint: Checkpoint, side: int) -> list[Checkpoint]:
+        move_back_distance = 0.1
+        move_back = Checkpoint(main_checkpoint.x - move_back_distance * np.cos(main_checkpoint.a),
+                               main_checkpoint.y - move_back_distance * np.sin(main_checkpoint.a),
+                               main_checkpoint.a - np.pi)
+        move_back.a = np.arctan2(np.sin(move_back.a), np.cos(move_back.a))
 
-        if side > 0:
-            checkpoint_angle = np.arctan2(normal[1], normal[0])
-            turned_checkpoint_angle = checkpoint_angle + np.pi / 2
-        else:
-            checkpoint_angle = np.arctan2(-normal[1], -normal[0])
-            turned_checkpoint_angle = checkpoint_angle - np.pi / 2
+        turn_to_the_side = Checkpoint(move_back.x, move_back.y, move_back.a + side * np.pi / 2)
+        turn_to_the_side.a = np.arctan2(np.sin(turn_to_the_side.a), np.cos(turn_to_the_side.a))
 
-        offset_distance = 0.05 + self.robot.radius + obstacle_red.radius + 0.05
-        new_checkpoint = Checkpoint(center[0] + offset_distance * np.cos(checkpoint_angle),
-                                    center[1] + offset_distance * np.sin(checkpoint_angle),
-                                    np.arctan2(np.sin(checkpoint_angle + np.pi), np.cos(checkpoint_angle + np.pi)))
+        move_forward = 0.3
+        move_forward = Checkpoint(turn_to_the_side.x + move_forward * np.cos(turn_to_the_side.a),
+                                  turn_to_the_side.y + move_forward * np.sin(turn_to_the_side.a),
+                                  turn_to_the_side.a)
 
-        possible_new_checkpoints = Checkpoint(center[0] + offset_distance * np.cos(checkpoint_angle + np.pi),
-                                              center[1] + offset_distance * np.sin(checkpoint_angle + np.pi),
-                                              np.arctan2(np.sin(checkpoint_angle), np.cos(checkpoint_angle)))
+        look_around_right = Checkpoint(move_forward.x, move_forward.y, move_forward.a - np.pi / 4)
+        look_around_right.a = np.arctan2(np.sin(look_around_right.a), np.cos(look_around_right.a))
 
-        turned_checkpoint_angle = np.arctan2(np.sin(turned_checkpoint_angle), np.cos(turned_checkpoint_angle))
-        turned_checkpoint = Checkpoint(new_checkpoint.x, new_checkpoint.y, turned_checkpoint_angle)
+        look_around_left = Checkpoint(move_forward.x, move_forward.y, move_forward.a + np.pi / 4)
+        look_around_left.a = np.arctan2(np.sin(look_around_left.a), np.cos(look_around_left.a))
 
-        updated = False
+        return [move_back, turn_to_the_side, move_forward, look_around_right, look_around_left, move_forward]
+
+    def add_checkpoint_for_obstacle_pair(self, obstacle_one, obstacle_two, current_checkpoint_idx):
+        center = ((obstacle_one.x + obstacle_two.x) / 2, (obstacle_one.y + obstacle_two.y) / 2)
+        normal = (-obstacle_two.y + obstacle_one.y, obstacle_two.x - obstacle_one.x)
+        side = normal[0] * (self.robot.x - obstacle_one.x) + normal[1] * (self.robot.y - obstacle_one.y)
+
+        finish_node = False
+        if obstacle_one.color == 2 and obstacle_two.color == 2:
+            finish_node = True
+
+        if side == 0:
+            side = 0.0001
+
+        checkpoint_angle = np.arctan2(np.sign(side)*normal[1], np.sign(side)*normal[0])
+        checkpoint_angle += np.pi
+        checkpoint_angle = np.arctan2(np.sin(checkpoint_angle), np.cos(checkpoint_angle))
+
+        offset_distance = 0.05 + self.robot.radius + obstacle_one.radius
+        new_checkpoint = Checkpoint(center[0] - offset_distance * np.cos(checkpoint_angle),
+                                    center[1] - offset_distance * np.sin(checkpoint_angle),
+                                    checkpoint_angle)
+
+        if not finish_node:
+            additional_checkpoints = self.generate_checkpoints_for_exploration(new_checkpoint, np.sign(side))
+
+        found = False
         for idx in self.primary_checkpoints_idxs:
-            if distance(new_checkpoint, self.checkpoints[idx]) < proximity_threshold:
+            distance_from_center = np.sqrt((center[0] - self.checkpoints[idx].x) ** 2 +
+                                           (center[1] - self.checkpoints[idx].y) ** 2)
+            if abs(distance_from_center - offset_distance) > 0.1:
+                continue
+            found = True
+
+            if idx > current_checkpoint_idx:
                 self.checkpoints[idx] = new_checkpoint
-                self.checkpoints[idx + 1] = turned_checkpoint
-                updated = True
-                break
-            # already visited checkpoint but the robot got behind the obstacles
-            if distance(self.checkpoints[idx], possible_new_checkpoints) < proximity_threshold:
-                updated = True
+
+                if finish_node:
+                    break
+
+                for i, checkpoint in enumerate(additional_checkpoints):
+                    self.checkpoints[idx + i + 1] = additional_checkpoints[i]
                 break
 
-        if not updated and not self.found_finish:
+        if self.found_finish and finish_node and not found:
+            print("Adding new finish checkpoint")
             self.checkpoints.append(new_checkpoint)
             self.primary_checkpoints_idxs.append(len(self.checkpoints) - 1)
-            self.checkpoints.append(turned_checkpoint)
-
+            return True
+        elif not found and not self.found_finish:
+            print("Adding new checkpoint")
+            self.checkpoints.append(new_checkpoint)
+            self.primary_checkpoints_idxs.append(len(self.checkpoints) - 1)
+            if not finish_node:
+                self.checkpoints = self.checkpoints + additional_checkpoints
             return True
         return False
 
-    def add_finish(self, obstacle_one, obstacle_two):
-        proximity_threshold = 0.20  # up to 20 cm is the same checkpoint, probably should be higher
-        center = ((obstacle_one.x + obstacle_two.x) / 2, (obstacle_one.y + obstacle_two.y) / 2)
-        direction = (obstacle_two.x - obstacle_one.x, obstacle_two.y - obstacle_one.y)
-        normal = (-direction[1], direction[0])
-        side = normal[0] * (self.robot.x - obstacle_one.x) + normal[1] * (self.robot.y - obstacle_one.y)
-
-        if side > 0:
-            checkpoint_angle = np.arctan2(normal[1], normal[0])
-        else:
-            checkpoint_angle = np.arctan2(-normal[1], -normal[0])
-
-        offset_distance = 0.05 + self.robot.radius + obstacle_one.radius + 0.05
-        new_x = center[0] + offset_distance * np.cos(checkpoint_angle)
-        new_y = center[1] + offset_distance * np.sin(checkpoint_angle)
-        checkpoint_angle = np.arctan2(np.sin(checkpoint_angle + np.pi), np.cos(checkpoint_angle + np.pi))
-
-        # Check if there's an existing checkpoint nearby
-        updated = False
-        # for checkpoint in self.checkpoints:
-        # for idx in self.primary_checkpoints_idxs:
-        if np.sqrt((self.checkpoints[-1].x - new_x) ** 2 + (self.checkpoints[-1].y - new_y) ** 2) < proximity_threshold:
-            # Adjust existing self.checkpoints[-1] position and angle
-            self.checkpoints[-1].x = new_x
-            self.checkpoints[-1].y = new_y
-            self.checkpoints[-1].a = checkpoint_angle
-            updated = True
-            self.found_finish = True
-            return
-
-        if not updated:
-            # Create new checkpoint
-            new_checkpoint = Checkpoint(new_x, new_y, checkpoint_angle)
-            self.checkpoints.append(new_checkpoint)
-            self.found_finish = True
-            print("--------------- Found FINISH ---------------")
-        return
-
-    def update_checkpoints(self):
+    def update_checkpoints(self, current_checkpoint_idx):
         obstacles_red = [obstacle for obstacle in self.obstacles if obstacle.color == 0]
         obstacles_blue = [obstacle for obstacle in self.obstacles if obstacle.color == 1]
         obstacles_green = [obstacle for obstacle in self.obstacles if obstacle.color == 2]
@@ -155,7 +150,9 @@ class Environment:
         for obstacle_red in obstacles_red:
             for obstacle_blue in obstacles_blue:
                 if abs(distance(obstacle_blue, obstacle_red) - 0.055) < 0.1:
-                    if self.add_checkpoint_for_obstacle_pair(obstacle_red, obstacle_blue):
+                    if self.add_checkpoint_for_obstacle_pair(obstacle_red,
+                                                             obstacle_blue,
+                                                             current_checkpoint_idx):
                         added_new = True
 
         for i in range(len(obstacles_green)):
@@ -163,7 +160,12 @@ class Environment:
                 if i == j:
                     continue
                 if abs(distance(obstacles_green[i], obstacles_green[j]) - 0.055) < 0.1:
-                    self.add_finish(obstacles_green[i], obstacles_green[j])
+                    if not self.found_finish:
+                        print("--------------- Found FINISH ---------------")
+                        self.found_finish = True
+                    self.add_checkpoint_for_obstacle_pair(obstacles_green[i],
+                                                          obstacles_green[j],
+                                                          current_checkpoint_idx)
         return added_new
 
     def simulate_movement(self, move, time):
