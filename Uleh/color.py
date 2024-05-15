@@ -5,7 +5,6 @@ import math
 import time
 from collections import deque
 from scipy.stats import norm # type: ignore
-from robolab_turtlebot import Rate
 
 import Uleh.utils
 from Uleh.hue import calculate_hue_params
@@ -244,8 +243,7 @@ class ColorSettings:
     def adapt_image_colors(self, turtle, color_settings, color_adapt_queue):
     # Assign color value corresponding to the color of found obstacle
         from Uleh.rectangle import RectangleProcessor
-        rate = Rate(100)
-        
+
         turtle.reset_odometry()
         a = turtle.get_odometry()[2]
         # Keeps track of the last multiple for which the condition was met
@@ -312,7 +310,6 @@ class ColorSettings:
                     turtle.cmd_velocity(angular=math.pi/2)
                     last_triggered_multiple = nearest_multiple
 
-            rate.sleep()
             a = turtle.get_odometry()[2]
         
         turtle.cmd_velocity(angular=0)

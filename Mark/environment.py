@@ -1,50 +1,56 @@
 import numpy as np
 
+
 def distance(point1, point2) -> float:
-    return np.sqrt((point1.x - point2.x)**2 + (point1.y - point2.y)**2)
+    return np.sqrt((point1.x - point2.x) ** 2 + (point1.y - point2.y) ** 2)
+
 
 class Robot:
-    def __init__(self, x, y, a,):
-
-        self.max_detection_range = 1.5 # m
+    def __init__(self, x, y, a, ):
+        self.max_detection_range = 1.5  # m
         self.fov_angle = np.deg2rad(60)
-        self.radius = 0.177 # m
-        self.linear_speed = 0.2 # m/s
-        self.linear_acceleration = 0.4 # m/s^2
-        self.max_angular_speed = np.pi / 8 # rad/s
+        self.radius = 0.177  # m
+        self.linear_speed = 0.2  # m/s
+        self.linear_acceleration = 0.4  # m/s^2
+        self.max_angular_speed = np.pi / 8  # rad/s
         self.min_angular_speed = np.pi / 16
         self.min_linear_speed = 0.05
-        
-        self.distance_allowence = 0.08
+
+        self.distance_allowance = 0.08
         self.path_update_distance = 0.04
-        self.angular_speed_distance_allowence = 0.06
-        self.angle_allowence = np.deg2rad(1)
-        self.obstacle_clearence = 0.045 # m
-        
+        self.angular_speed_distance_allowance = 0.06
+        self.angle_allowance = np.deg2rad(1)
+        self.obstacle_clearance = 0.045  # m
+
         self.x = x
         self.y = y
         self.a = a
-    
+
     def __str__(self) -> str:
         return f'Robot coordinates: {self.x, self.y, self.a}'
+
 
 class Checkpoint:
     def __init__(self, x, y, a):
         self.x = x
         self.y = y
         self.a = a
+
     def __str__(self) -> str:
         return f'Checkpoint coordinates: {self.x, self.y, self.a}'
 
+
 class Obstacle:
-    def __init__(self, x, y, color, radius = 0.025):
-        self.x: float = x 
-        self.y: float = y 
-        self.radius = radius 
+    def __init__(self, x, y, color, radius=0.025):
+        self.x: float = x
+        self.y: float = y
+        self.radius = radius
         self.color: int = color
+
     def __str__(self) -> str:
         return f'Obstacle coordinates and color: {self.x, self.y, self.color}'
-            
+
+
 class Environment:
     def __init__(self, robot, real_robot, checkpoints, obstacles, hidden_obstacles):
         self.robot: Robot = robot
@@ -52,7 +58,7 @@ class Environment:
         self.obstacles: list[Obstacle] = obstacles
         self.primary_checkpoints_idxs: list[int] = []
         self.real_robot: Robot = real_robot
-        
+
         self.found_finish = False
 
         self.hidden_obstacles: set[Obstacle] = hidden_obstacles
@@ -75,7 +81,7 @@ class Environment:
         new_checkpoint = Checkpoint(center[0] + offset_distance * np.cos(checkpoint_angle),
                                     center[1] + offset_distance * np.sin(checkpoint_angle),
                                     np.arctan2(np.sin(checkpoint_angle + np.pi), np.cos(checkpoint_angle + np.pi)))
-        
+
         possible_new_checkpoints = Checkpoint(center[0] + offset_distance * np.cos(checkpoint_angle + np.pi),
                                               center[1] + offset_distance * np.sin(checkpoint_angle + np.pi),
                                               np.arctan2(np.sin(checkpoint_angle), np.cos(checkpoint_angle)))
@@ -124,7 +130,7 @@ class Environment:
         updated = False
         # for checkpoint in self.checkpoints:
         # for idx in self.primary_checkpoints_idxs:
-        if np.sqrt((self.checkpoints[-1].x - new_x)**2 + (self.checkpoints[-1].y - new_y)**2) < proximity_threshold:
+        if np.sqrt((self.checkpoints[-1].x - new_x) ** 2 + (self.checkpoints[-1].y - new_y) ** 2) < proximity_threshold:
             # Adjust existing self.checkpoints[-1] position and angle
             self.checkpoints[-1].x = new_x
             self.checkpoints[-1].y = new_y
@@ -158,12 +164,12 @@ class Environment:
                     continue
                 if abs(distance(obstacles_green[i], obstacles_green[j]) - 0.055) < 0.1:
                     self.add_finish(obstacles_green[i], obstacles_green[j])
-        return added_new                    
-                        
+        return added_new
+
     def simulate_movement(self, move, time):
         # Introduce noise in linear and angular velocities
         linear_noise = 0 * np.random.normal(0, 0.05)  # Mean 0, standard deviation 0.05
-        angular_noise = 0 * np.random.normal(0, 0.1) # Mean 0, standard deviation 0.01
+        angular_noise = 0 * np.random.normal(0, 0.1)  # Mean 0, standard deviation 0.01
 
         # Apply the noise to the movement values
         noisy_linear = move[0] + linear_noise
@@ -180,10 +186,10 @@ class Environment:
         self.real_robot.x += measured_delta_x
         self.real_robot.y += measured_delta_y
         self.real_robot.a += measured_delta_theta
-        
+
         # Normalize the angle
         self.real_robot.a = np.arctan2(np.sin(self.real_robot.a), np.cos(self.real_robot.a))
-        
+
         return (noisy_delta_x, noisy_delta_y, noisy_delta_theta)
 
     def get_measurement(self):
@@ -191,24 +197,24 @@ class Environment:
         for obstacle in self.hidden_obstacles:
             # Calculate true distance and angle to the obstacle
             true_distance_to_obstacle = distance(self.real_robot, obstacle)
-            true_angle_to_obstacle = np.arctan2(obstacle.y - self.real_robot.y, obstacle.x - self.real_robot.x) - self.real_robot.a
+            true_angle_to_obstacle = np.arctan2(obstacle.y - self.real_robot.y,
+                                                obstacle.x - self.real_robot.x) - self.real_robot.a
 
             # Check if the obstacle is within the detectable range and field of view
             if (true_distance_to_obstacle <= self.real_robot.max_detection_range and
                     -self.real_robot.fov_angle / 2 <= true_angle_to_obstacle <= self.real_robot.fov_angle / 2):
-                
                 # Add noise to distance and angle measurements
                 distance_noise = 0 * np.random.normal(0, 0.03)
                 angle_noise = 0 * np.random.normal(0, np.radians(1))
 
                 # Ensure that the measurements are scalar
-                measured_distance = min(self.real_robot.max_detection_range, float(true_distance_to_obstacle + distance_noise))
+                measured_distance = min(self.real_robot.max_detection_range,
+                                        float(true_distance_to_obstacle + distance_noise))
                 measured_angle = min(self.real_robot.fov_angle, float(true_angle_to_obstacle + angle_noise))
 
                 measurements.append([measured_distance, measured_angle, float(obstacle.color)])
-                
+
         return measurements
-    
+
     def get_odometry(self):
-        return (self.real_robot.x, self.real_robot.y, self.real_robot.a)
-    
+        return self.real_robot.x, self.real_robot.y, self.real_robot.a

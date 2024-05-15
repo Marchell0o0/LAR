@@ -1,55 +1,57 @@
-from a_star import A_star, Node
+from Mark.astar import AStar, Node
 import numpy as np
 import time
 
+
 def distance(point1: Node, point2: Node):
-    return np.sqrt((point1.x - point2.x)**2 + (point1.y - point2.y)**2)
+    return np.sqrt((point1.x - point2.x) ** 2 + (point1.y - point2.y) ** 2)
+
 
 class PathCreation:
     def __init__(self, env) -> None:
         self.env = env
-        self.a_star = A_star(env)
-        self.node_frequency_on_injection = 0.02 
+        self.a_star = AStar(env)
+        self.node_frequency_on_injection = 0.02
         self.smoother_weight_smooth = 0.9
         self.smoother_weight_data = 1 - self.smoother_weight_smooth
         self.smoother_tolerance = 0.001
-        
+
     def create_path(self, robot, goal_checkpoint):
+        print("--------------- Creating path ---------------")
         start_time = time.time()
         path = self.initialize_path(robot, goal_checkpoint)
         if path:
             path[0] = Node(robot.x, robot.y)
             path.append(goal_checkpoint)
         init_time = time.time() - start_time
-        
+
         start_time = time.time()
         path = self.simplify_path(path)
         simplify_time = time.time() - start_time
-        print("Simplified path:")
+        # print("Simplified path:")
         # for node in path:
-            # print(node)
+        # print(node)
         start_time = time.time()
         path = self.inject_nodes(path)
         # print("Injected nodes:", path)
         inject_time = time.time() - start_time
-        
-        print(f"Time to initialize path: {init_time:.4f} seconds")
-        print(f"Time to simplify path: {simplify_time:.4f} seconds")
-        print(f"Time to inject nodes: {inject_time:.4f} seconds")
-        
+
+        # print(f"Time to initialize path: {init_time:.4f} seconds")
+        # print(f"Time to simplify path: {simplify_time:.4f} seconds")
+        # print(f"Time to inject nodes: {inject_time:.4f} seconds")
+
         path = self.smoother(path)
-        
+
         # TODO: Could work better with this
         # path = self.simplify_path(path)
         # path = self.inject_nodes(path)
         # path = self.smoother(path)
 
         # self.compute_path_metrics(path)
-        
-        return path    
-        
+        print("---------------------------------------------")
+        return path
+
     def initialize_path(self, robot, goal_checkpoint):
-        path = []
         start = Node(robot.x, robot.y)
         # goal = Node(goal_checkpoint.x, goal_checkpoint.y)
         print("Straight path: ", end='')
@@ -57,15 +59,15 @@ class PathCreation:
             print("NO COLLISION")
             return [start, goal_checkpoint]
         print("COLLISION")
-        
+
         print("A*:        ", end='')
         path = self.a_star.search(goal_checkpoint)
         if path:
             print("    FOUND")
             return path
         print("NOT FOUND")
-        return path    
-        
+        return path
+
     def simplify_path(self, path):
         if len(path) == 2:
             return path
@@ -82,7 +84,7 @@ class PathCreation:
             simplified_path.append(path[i])
             i += 1
         return simplified_path
-    
+
     def inject_nodes(self, path):
         new_path = []
 
@@ -105,7 +107,7 @@ class PathCreation:
             new_path.append(end_node)
         # new_path.append(path[len(path) - 1])
         return new_path
-        
+
     def smoother(self, path):
         # Create a deep copy of the path to avoid modifying the original
         new_path = [Node(node.x, node.y) for node in path]
@@ -121,19 +123,19 @@ class PathCreation:
                 # Smoothing for x coordinate
                 original_x = new_path[i].x
                 new_path[i].x += (
-                    weight_data * (path[i].x - new_path[i].x)
-                    + weight_smooth * (new_path[i - 1].x + new_path[i + 1].x - 2.0 * new_path[i].x)
+                        weight_data * (path[i].x - new_path[i].x)
+                        + weight_smooth * (new_path[i - 1].x + new_path[i + 1].x - 2.0 * new_path[i].x)
                 )
                 change += abs(original_x - new_path[i].x)
-                
+
                 # Smoothing for y coordinate
                 original_y = new_path[i].y
                 new_path[i].y += (
-                    weight_data * (path[i].y - new_path[i].y)
-                    + weight_smooth * (new_path[i - 1].y + new_path[i + 1].y - 2.0 * new_path[i].y)
+                        weight_data * (path[i].y - new_path[i].y)
+                        + weight_smooth * (new_path[i - 1].y + new_path[i + 1].y - 2.0 * new_path[i].y)
                 )
                 change += abs(original_y - new_path[i].y)
-                
+
         return new_path
 
     def compute_path_metrics(self, path):
@@ -146,10 +148,11 @@ class PathCreation:
             if area == 0:
                 return 0
             return 4 * area / (a * b * c)
+
         # for node in path:
-            # print(node)
+        # print(node)
         for i in range(1, len(path) - 1):
-            path[i].curvature = curvature(path[i-1], path[i], path[i+1])
+            path[i].curvature = curvature(path[i - 1], path[i], path[i + 1])
 
     def straight_path_exists(self, start, goal) -> bool:
         dx = goal.x - start.x
@@ -158,23 +161,23 @@ class PathCreation:
             # Calculate relative positions to the obstacle
             ox = obstacle.x - start.x
             oy = obstacle.y - start.y
-            
+
             # Compute the projection of the obstacle center onto the path
             projection = (ox * dx + oy * dy) / (dx * dx + dy * dy)
-            
+
             # If projection is outside the [0,1] range, skip as it's outside the segment
             if projection < 0 or projection > 1:
                 continue
-            
+
             # Find the closest point on the line segment to the obstacle
             closest_x = start.x + projection * dx
             closest_y = start.y + projection * dy
-            
+
             # Calculate the distance from the obstacle center to the closest point
             dist_sq = (closest_x - obstacle.x) ** 2 + (closest_y - obstacle.y) ** 2
-            
+
             # Check if the distance is within the radius (squared)
-            clearance = obstacle.radius + self.env.robot.radius + self.env.robot.obstacle_clearence
+            clearance = obstacle.radius + self.env.robot.radius + self.env.robot.obstacle_clearance
             if dist_sq < clearance ** 2:
                 return False
 

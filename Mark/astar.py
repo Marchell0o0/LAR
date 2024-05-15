@@ -2,11 +2,12 @@ from typing import Optional
 import numpy as np
 import heapq
 
+
 class PriorityQueue:
     def __init__(self, goal):
         self.goal = goal
         self.elements = []
-    
+
     def put(self, item, priority=None):
         if priority is None:
             priority = self.heuristic(item, self.goal)
@@ -21,6 +22,7 @@ class PriorityQueue:
     def heuristic(self, node1, node2):
         # Euclidean distance as a simple heuristic
         return distance(node1, node2)
+
 
 class Node:
     def __init__(self, x, y):
@@ -39,16 +41,17 @@ class Node:
 
     def __hash__(self):
         return hash((self.x, self.y))
-    
+
     def __str__(self) -> str:
         return f'Node: ({self.x:.4f},{self.y:.4f}), \
 curvature:{self.curvature:.4f}'
 
+
 def distance(point1: Node, point2: Node):
-    return np.sqrt((point1.x - point2.x)**2 + (point1.y - point2.y)**2)
+    return np.sqrt((point1.x - point2.x) ** 2 + (point1.y - point2.y) ** 2)
 
 
-class A_star:
+class AStar:
     def __init__(self, env):
         self.env = env
 
@@ -69,7 +72,7 @@ class A_star:
 
     def in_collision_a_star(self, node):
         for obstacle in self.env.obstacles:
-            allowed_distance = (obstacle.radius + self.env.robot.radius + self.env.robot.obstacle_clearence) * 100
+            allowed_distance = (obstacle.radius + self.env.robot.radius + self.env.robot.obstacle_clearance) * 100
             if distance(node, Node(obstacle.x * 100, obstacle.y * 100)) < allowed_distance:
                 return True
         return False
@@ -119,5 +122,3 @@ class A_star:
                     came_from[neighbor] = current
 
         return []
-    
-    

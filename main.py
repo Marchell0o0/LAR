@@ -1,23 +1,24 @@
-import cv2
 import time
-import cProfile 
-import pstats
-import numpy as np
 import sys
+import numpy as np
+import cv2
+import os
 
-from visualization import RobotVisualization
-from environment import Environment, Robot, Checkpoint, Obstacle
-from path_execution import PathExecution
-from path_creation import PathCreation
-from kalman import KalmanFilter
+from Mark.visualization import RobotVisualization
+from Mark.environment import Environment, Robot, Checkpoint, Obstacle
+from Mark.path_execution import PathExecution
+from Mark.path_creation import PathCreation
+from Mark.kalman import KalmanFilter
 
 from Uleh.rectangle import RectangleProcessor
 from Uleh.color import ColorSettings, ColorHueQueue
 
 # Running pygame without the display to resolve a dependency with OpenGL
-import pygame 
+import pygame
 import os
+
 os.environ['SDL_VIDEODRIVER'] = 'dummy'
+
 
 def initialize_turtle():
     from robolab_turtlebot import Turtlebot, get_time, Rate
@@ -25,27 +26,31 @@ def initialize_turtle():
     # turtle = Turtlebot(rgb = True, depth = True, pc = True)
 
     # turtle = Turtlebot()
-    turtle = Turtlebot(rgb = True, pc = True)
+    turtle = Turtlebot(rgb=True, pc=True)
 
     turtle.wait_for_rgb_image()
     print('Rgb image received')
-    
+
     turtle.wait_for_point_cloud()
     print('Point cloud received')
-    
+
     # turtle.wait_for_depth_image()
     # print("Depth image received")
-    
+
     turtle.wait_for_odometry()
     print("Odometry received")
-    
+
     turtle.reset_odometry()
     turtle.get_odometry()
-    
+
     rate = Rate(1000)
     return turtle, rate
 
+
 def main():
+    print("Running main.py")
+    print(f"PID: {os.getpid()}")
+    input("Press Enter to continue...")
 
     visualization = False
     turtlebot = False
@@ -55,23 +60,22 @@ def main():
         elif argument == "-turtlebot":
             turtlebot = True
 
-
-    # env = Environment(Robot(0, 0, 0), 
+    # env = Environment(Robot(0, 0, 0),
     #                     [Checkpoint(50, 50, 0),
     #                      Checkpoint(100, 0, 180),
     #                      Checkpoint(0, 0, 90)],
     #                     set())
-    
+
     # env = Environment(Robot(0, 0, 0), Robot(0, 0, 0),
     #                   [Checkpoint(2, 0, 0)],
     #                   [], set())   
-     
+
     # env = Environment(Robot(0, 0, np.deg2rad(-180)),
     #                   [Checkpoint(2, 0, 0),
     #                    Checkpoint(0, 0, 0)],
     #                   [Obstacle(1, 0.2, "red"),
     #                    Obstacle(1, -0.2, "blue")], set())  
-    
+
     # env = Environment(Robot(-0.3, 0, 0), Robot(-0.3, 0, 0),
     #                     [Checkpoint(1, 0, 0),
     #                      Checkpoint(2, 1, np.pi/4),
@@ -84,13 +88,12 @@ def main():
     #                      Obstacle(1.5, 0.75, 2),
     #                      ])
 
-
     # env = Environment(Robot(0, 0, 0), Robot(0, 0, 0),
     #                     [],
     #                     [],
     #                     [Obstacle(1, 0.05, 0),
     #                      Obstacle(1, -0.05, 1)])
-    
+
     # env = Environment(Robot(0, 0, np.pi/2), 
     #                     [Checkpoint(0, 1, np.pi/2)],
     #                     [],
@@ -106,37 +109,35 @@ def main():
     #                      Checkpoint(0, 0, 0)],
     #                     [],
     #                     [Obstacle(0.5, 0.5, 0)])
-    
-    
-    # env = Environment(Robot(0, 0, 0), Robot(0, 0, 0),
-    #                     [
-    #                     # Checkpoint(0, 0, np.pi/2),
-    #                     #  Checkpoint(0, 0, np.pi),
-    #                     #  Checkpoint(0, 0, -np.pi/2),
-    #                     #  Checkpoint(0, 0, 0)
-    #                     ],
-    #                      [],
-    #                      [Obstacle(1, 0.05, 0),
-    #                      Obstacle(1, -0.05, 1),
-    #                      Obstacle(0.6, 0.6, 2),
-    #                      Obstacle(1, 1, 1),
-    #                      Obstacle(0.95, 1.05, 0),
-    #                      Obstacle(0, 1.50, 2),
-    #                      Obstacle(0.05, 1.55, 2),
-    #                      Obstacle(-1.25, 0, 2),
-    #                      Obstacle(-1.35, 0, 2)])
 
     env = Environment(Robot(0, 0, 0), Robot(0, 0, 0),
-                        [
-                        # Checkpoint(0, 0, np.pi/2),
-                        #  Checkpoint(0, 0, np.pi),
-                        #  Checkpoint(0, 0, -np.pi/2),
-                        #  Checkpoint(0, 0, 0)
-                        ],
-                         [],
-                         [])
-    
-    
+                      [
+                          # Checkpoint(0, 0, np.pi / 2),
+                          # Checkpoint(0, 0, np.pi),
+                          # Checkpoint(0, 0, -np.pi / 2),
+                          # Checkpoint(0, 0, 0)
+                      ],
+                      [],
+                      [Obstacle(1, 0.05, 0),
+                       Obstacle(1, -0.05, 1),
+                       Obstacle(0.6, 0.6, 2),
+                       Obstacle(1, 1, 1),
+                       Obstacle(0.95, 1.05, 0),
+                       Obstacle(0, 1.50, 2),
+                       Obstacle(0.05, 1.55, 2),
+                       Obstacle(-1.25, 0, 2),
+                       Obstacle(-1.35, 0, 2)])
+
+    # env = Environment(Robot(0, 0, 0), Robot(0, 0, 0),
+    #                   [
+    #                       # Checkpoint(0, 0, np.pi/2),
+    #                       #  Checkpoint(0, 0, np.pi),
+    #                       #  Checkpoint(0, 0, -np.pi/2),
+    #                       #  Checkpoint(0, 0, 0)
+    #                   ],
+    #                   [],
+    #                   [])
+
     path_creation = PathCreation(env)
     path_execution = PathExecution(env, path_creation)
     kalman_filter = KalmanFilter(env)
@@ -145,47 +146,44 @@ def main():
         # screen_dimensions = (2160, 3840)
         screen_dimensions = (1440, 900)
         vis = RobotVisualization(env, path_execution, kalman_filter, screen_dimensions)
-    
+
     if turtlebot:
-        
         turtle, rate = initialize_turtle()
 
         color_settings = ColorSettings()
         color_settings.calibrate_color(turtle)
-        
+
         color_adapt_queue = ColorHueQueue(color_settings)
         # color_settings.adapt_image_colors(turtle, color_settings, color_adapt_queue)
-    
+
         turtle.reset_odometry()
         previous_odometry = turtle.get_odometry()
-    
+
     running = True
     counter = 0
-    previous_time =  0
+    previous_time = 0
     obstacle_measurements = []
     next_move = (0, 0)
     counter_since_new_checkpoint = 0
     print("Starting main loop")
-    while running:   
-        if visualization:       
+    while running:
+        if visualization:
             if counter % 2 == 0:
                 vis.screen.fill((0, 0, 0))
                 vis.draw_everything()
                 vis.show_cv2()
-        
 
         if turtlebot:
             if (cv2.waitKey(1) & 0xFF == ord('q')) or turtle.is_shutting_down():
                 running = False
-            
+
             next_move = path_execution.get_current_move()
             if counter_since_new_checkpoint > 20:
-                turtle.cmd_velocity(angular = next_move[1], linear = next_move[0])
+                turtle.cmd_velocity(angular=next_move[1], linear=next_move[0])
             else:
-                turtle.cmd_velocity(angular = 0, linear = 0)
+                turtle.cmd_velocity(angular=0, linear=0)
 
             rate.sleep()
-
 
             # robot isn't moving quickly
             if next_move[1] < 0.1:
@@ -193,14 +191,14 @@ def main():
                 pc_image = turtle.get_point_cloud()
 
                 rectg_processor = RectangleProcessor(image,
-                                                pc_image,
-                                                color_settings,
-                                                color_adapt_queue)
-                detected_rectgs, masked_rectgs, image_rectg, _  = rectg_processor.process_image()
+                                                     pc_image,
+                                                     color_settings,
+                                                     color_adapt_queue)
+                detected_rectgs, masked_rectgs, image_rectg, _ = rectg_processor.process_image()
                 obstacle_measurements = detected_rectgs
-                if image_rectg is not None: 
-                    cv2.imshow('RGB Camera', image_rectg)    
-                # print(obstacle_measurements)
+                if image_rectg is not None:
+                    cv2.imshow('RGB Camera', image_rectg)
+                    # print(obstacle_measurements)
             else:
                 obstacle_measurements = []
                 # print("Turning too fast")
@@ -216,15 +214,15 @@ def main():
             # measurements are from mu_t
             kalman_filter.obstacles_measurement_update(obstacle_measurements)
             kalman_filter.update_for_visualization()
-            
+
             if env.update_checkpoints():
                 counter_since_new_checkpoint = 0
 
             path_execution.update_path()
             counter_since_new_checkpoint += 1
-            
-         
-         
+
+
+
 
         else:
             if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -233,18 +231,18 @@ def main():
                 # print(env.robot.a)
                 # print("Current path:", path_execution.path)
                 next_move = path_execution.get_current_move()
-                
+
                 # move change, record time from here
                 if previous_time == 0:
                     previous_time = time.time()
                 dt = time.time() - previous_time
-                
+
                 # if next_move[0] == 0 and next_move[1] == 0:
-                    # print("Robot has stopped, making a measurement")
-                    # time.sleep(0.5)
-                    
+                # print("Robot has stopped, making a measurement")
+                # time.sleep(0.5)
+
                 odometry_change = env.simulate_movement(next_move, dt)
-                
+
                 if visualization:
                     vis.clock.tick(120)
 
@@ -252,26 +250,26 @@ def main():
                     obstacle_measurements = env.get_measurement()
                 else:
                     obstacle_measurements = []
-                    
+
                 # update mu_t-1 to mu_t
                 kalman_filter.pos_update(odometry_change)
-                
+
                 # measurements are from mu_t
                 kalman_filter.obstacles_measurement_update(obstacle_measurements)
                 kalman_filter.update_for_visualization()
-                
+
                 env.update_checkpoints()
-                
+
                 path_execution.update_path()
                 previous_time = time.time()
 
-       
         counter += 1
-        
+
     print("Cycles:", counter)
     cv2.destroyAllWindows()
     pygame.quit()
-    return        
+    return
+
 
 if __name__ == "__main__":
-    main()    
+    main()
