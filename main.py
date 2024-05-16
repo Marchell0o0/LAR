@@ -115,13 +115,14 @@ def main():
                           # Checkpoint(0, 0, 0)
                       ],
                       [],
-                      [Obstacle(1, 0.05, 0),
-                       Obstacle(1, -0.05, 1),
-                       Obstacle(0.5, 0.6, 2),
-                       Obstacle(1.45, 1.3, 0),
-                       Obstacle(1.50, 1.25, 1),
-                       Obstacle(0, 1.60, 2),
-                       Obstacle(0.05, 1.65, 2)
+                      [
+                    #     Obstacle(1, 0.05, 0),
+                    #    Obstacle(1, -0.05, 1),
+                    #    Obstacle(0.5, 0.6, 2),
+                    #    Obstacle(1.45, 1.3, 0),
+                    #    Obstacle(1.50, 1.25, 1),
+                    #    Obstacle(0, 1.60, 2),
+                    #    Obstacle(0.05, 1.65, 2)
                        ])
 
     # env = Environment(Robot(0, 0, 0), Robot(0, 0, 0),
@@ -147,10 +148,9 @@ def main():
         turtle, rate = initialize_turtle()
 
         color_settings = ColorSettings()
-        color_settings.calibrate_color(turtle)
-
-        color_adapt_queue = ColorHueQueue(color_settings)
-        # color_settings.adapt_image_colors(turtle, color_settings, color_adapt_queue)
+        color_adapt_queue = ColorHueQueue(color_settings, parameter="hue") 
+        dev_adapt_queue = ColorHueQueue(color_settings, parameter="dev")
+        sat_adapt_queue = ColorHueQueue(color_settings, parameter="sat")
 
         turtle.reset_odometry()
         previous_odometry = turtle.get_odometry()
@@ -192,7 +192,9 @@ def main():
             rectg_processor = RectangleProcessor(image,
                                                     pc_image,
                                                     color_settings,
-                                                    color_adapt_queue)
+                                                    color_adapt_queue,
+                                                    dev_adapt_queue,
+                                                    sat_adapt_queue)
             detected_rectgs, masked_rectgs, image_rectg, _ = rectg_processor.process_image()
 
             obstacle_measurements = detected_rectgs

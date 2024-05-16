@@ -198,6 +198,7 @@ class RectangleProcessor:
                     
                     y_coords = []
                     distances = []
+                    # true_distances = []
                     
                     points = Uleh.utils.calculate_rectangle_points(self.image, cX, cY, height, width, angle_rot)
                     for point in points[:3]:
@@ -210,11 +211,17 @@ class RectangleProcessor:
                             y_coords.append(rectangle_y)
                         if not np.isnan(rectangle_distance) and rectangle_distance is not None:
                             distances.append(rectangle_distance)
+                        # if not np.isnan(value_true) and value_true is not None:
+                        #     true_distances.append(value_true)
                     
+                    # if len(true_distances) != 0:   
+                    #     value_true = np.mean(true_distances) 
+                            
                     # TODO: rewrite error checking
-                    if len(y_coords) != 0 and len(distances) != 0:   
-                        rectangle_y = np.mean(y_coords)
+                    if len(y_coords) != 0 and len(distances) != 0:
+                        Uleh.utils.remove_values_excluding_outliers(distances, 0.1)  
                         rectangle_distance = np.mean(distances)   
+                        rectangle_y = np.mean(y_coords)
                     else:
                         print("FINAL Y or DISTANCE is EMPTY")
                         pc_error_counter += 1
@@ -245,14 +252,14 @@ class RectangleProcessor:
                             
                             self.rectangles.append(rectangle)
                             Uleh.utils.draw_rectangle(result_mask, original_image, rectangle)
-                            # print(rectangle)
+                            print(rectangle)
                     else:
                         print("FINAL Y or DISTANCE is NaN")
                         pc_error_counter += 1
         
         # print(f"ALMOST RECTANGLES: {almost_rectg_counter}")        
         # print("Number of rectangles: ", len(self.rectangles))
-        print(f"Number of errors for PC: ", pc_error_counter)
+        # print(f"Number of errors for PC: ", pc_error_counter)
         
         return self.rectangles, result_mask, original_image
     

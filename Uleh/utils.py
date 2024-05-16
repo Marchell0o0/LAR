@@ -248,7 +248,15 @@ def calculate_rectangle_points(image, cX, cY, height, width, angle_rot, epsilonX
     # }
     
     return [center, top, bottom, left, right, lt, rt, lb, rb]
-    
+
+def remove_values_excluding_outliers(values, threshold):
+    median_value = np.median(values)  # Calculate the median
+    for value in values:
+        if abs(value - median_value) > threshold:
+            values.remove(value)
+            print(f"Excluded {value} as it's too far from the median.")
+    return
+  
 def draw_points_on_image(image, points):
     color = (0, 255, 0)
     radius = 3  # Small radius for a dot-like appearance
