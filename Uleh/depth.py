@@ -50,7 +50,7 @@ def find_point_depth(depth_image, x, y):
     
     return depth_value
     
-def find_point_pc_coords(pc_image, x, y):
+def find_point_pc_coords(pc_image, x, y, y_offset=-0.045, cylinder_rad = 0.025):
     array_shape = pc_image.shape
     height = array_shape[0]
     width = array_shape[1]
@@ -61,9 +61,9 @@ def find_point_pc_coords(pc_image, x, y):
         # print(f"X and/or Y out of boundaries for pc: {x, y}")
         return None, None, None
     
-    y_value = pc_image[y, x, 0] 
+    y_value = pc_image[y, x, 0] + y_offset
     x_value = pc_image[y, x, 1] 
-    z_value = pc_image[y, x, 2] 
+    z_value = pc_image[y, x, 2] + cylinder_rad
     # print(f"PC depth at pixel ({x}, {y}): {z_value} meters, real (x, y): ({x_value}, {y_value})")
     return x_value, y_value, z_value
 

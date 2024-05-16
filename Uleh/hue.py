@@ -21,6 +21,7 @@ def calculate_hue_average(hist_hue, color_range):
     
     return int(average_hue)
 
+# min_peak=0.02 15.05.2024
 def calculate_hue_peak_average(image, color_range, saturation_threshold, min_peak=0.02):
     """Choose the weighted value for hue based on peaks that correspond to the saturation value"""
     

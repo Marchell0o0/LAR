@@ -29,6 +29,29 @@ def smooth_histogram_with_gaussian(hist, sigma = 1):
 def is_within_range(value, range_bounds):
     return range_bounds[0] <= value <= range_bounds[1]
 
+# TODO: rewrite this function
+def is_within_range_distance(aspect_ratio, distance):
+    is_in_range = False
+    if (is_within_range(distance, [0.15, 0.5]) and
+        is_within_range(aspect_ratio, [2, 4])):
+        is_in_range = True
+    elif (is_within_range(distance, [0.3, 1]) and
+        is_within_range(aspect_ratio, [3, 6.2])):
+        is_in_range = True
+    elif (is_within_range(distance, [1, 1.3]) and
+        is_within_range(aspect_ratio, [3.1, 6.8])):
+        is_in_range = True
+    elif (is_within_range(distance, [1.3, 2]) and
+    is_within_range(aspect_ratio, [3.5, 7.8])):
+        is_in_range = True
+    elif (is_within_range(distance, [2, 3]) and
+        is_within_range(aspect_ratio, [3.7, 8])):
+        is_in_range = True
+    if is_in_range == False:
+        print(f"Rectangle outside boundaries - aspect ratio: {aspect_ratio}, distance: {distance}")
+    return is_in_range
+        
+        
 def draw_rectangle(result_mask, original_image, rectangle):
     cX, cY = rectangle.cX, rectangle.cY
     height, width = rectangle.height, rectangle.width
@@ -39,9 +62,6 @@ def draw_rectangle(result_mask, original_image, rectangle):
     angle_pos = rectangle.angle_pos
     y = rectangle.y
     color_bgr = (int(rectangle.color), int(rectangle.color), int(rectangle.color))
-    # cv2.polylines(result_mask, [approx], True, (0, 255, 0), 2)
-    cv2.drawContours(result_mask, [box_points], 0, color_bgr, cv2.FILLED)
-    cv2.drawContours(original_image, [approx], 0, (0, 255, 255), 2)
     rectg_name = "None"
     draw_color = (0, 0, 0)
     if rectangle.color == 150:
@@ -53,6 +73,10 @@ def draw_rectangle(result_mask, original_image, rectangle):
     elif rectangle.color == 250:
         rectg_name = "Red"
         draw_color = (0, 0, 255)
+    if rectg_name == "None":
+        return
+    cv2.drawContours(result_mask, [box_points], 0, color_bgr, cv2.FILLED)
+    cv2.drawContours(original_image, [approx], 0, (0, 255, 255), 2)
     cv2.drawContours(original_image, [box_points], 0, draw_color, 2)
     # cv2.putText(original_image, rectg_name, (cX, cY),
     #                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, draw_color, 2)

@@ -5,7 +5,7 @@ from scipy.signal import find_peaks # type: ignore
 from Uleh.utils import smooth_histogram_with_gaussian
 
 # use this function for a blue and red obstacle
-def calculate_saturation_threshold(image, saturation_range, color_name):
+def calculate_saturation_threshold(image, saturation_range, color_name, sat_offset=0):
     
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     
@@ -22,11 +22,11 @@ def calculate_saturation_threshold(image, saturation_range, color_name):
     # Debugging:
     # print(f"Saturation avarage for {color_name}: {sat_threshold}")
     # plot_histogram(hist_sat_smoothed, "saturation")
-    
+
     return sat_threshold
 
 # use this function for a green obstacle
-def calculate_saturation_threshold_green(image, saturation_range):
+def calculate_saturation_threshold_green(image, saturation_range, sat_offset=20):
     
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     
@@ -48,12 +48,12 @@ def calculate_saturation_threshold_green(image, saturation_range):
     if peaks.size > 0:
         #TODO: remove hardcoding saturation for green
         # print("Saturation value from PEAK for GREEN: ", peaks[0] + saturation_range[0])
-        return peaks[0] + saturation_range[0]
+        return peaks[0] + saturation_range[0] + sat_offset
         
         # print("Saturation value for green: ", 70)
-        # return 70
+        # return 100
     else:
         # print("Defaut saturation value from PEAK for GREEN returned: 70")
-        return 70
+        return 100
     
     # return 70
