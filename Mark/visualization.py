@@ -13,9 +13,9 @@ class RobotVisualization:
 
         pygame.init()
         # self.base_size = (3840, 3840) # 4K square
-        # self.base_size = (1080, 1080)
+        self.base_size = (1080, 1080)
         # self.base_size = (500, 500)
-        self.base_size = (400, 400)
+        # self.base_size = (400, 400)
         # self.base_size = (250, 250)
         self.screen = pygame.display.set_mode(self.base_size)
         self.clock = pygame.time.Clock()
@@ -70,7 +70,7 @@ class RobotVisualization:
             self.draw_checkpoint(checkpoint)
 
         self.draw_robot(self.env.robot)
-        # self.draw_robot(self.env.real_robot, True)
+        self.draw_robot(self.env.real_robot, True)
 
     def draw_path(self, path):
         updated_rects = []  # List to store rectangles that need to be updated

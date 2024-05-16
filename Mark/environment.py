@@ -7,18 +7,26 @@ def distance(point1, point2) -> float:
 
 class Robot:
     def __init__(self, x, y, a, ):
-        self.max_detection_range = 1.5  # m
-        self.fov_angle = np.deg2rad(60)
         self.radius = 0.177  # m
-        self.linear_speed = 0.2  # m/s
-        self.linear_acceleration = 0.4  # m/s^2
-        self.max_angular_speed = np.pi / 8  # rad/s
-        self.min_angular_speed = np.pi / 16
-        self.min_linear_speed = 0.05
 
-        self.distance_allowance = 0.08
+        self.max_detection_range = 2  # m
+        self.fov_angle = np.deg2rad(50)
+
+        # self.linear_acceleration = 0.4  # m/s^2
+        # self.max_linear_speed = 0.2  # m/s
+        # self.max_angular_speed = np.pi / 8  # rad/s
+        # self.min_angular_speed = np.pi / 16
+        # self.min_linear_speed = 0.05
+
+        self.linear_acceleration = 0.7  # m/s^2
+        self.max_linear_speed = 1  # m/s
+        self.max_angular_speed = np.pi / 2  # rad/s
+        self.min_angular_speed = np.pi / 8
+        self.min_linear_speed = 0.00
+
+        self.distance_allowance = 0.03
         self.path_update_distance = 0.04
-        self.angular_speed_distance_allowance = 0.06
+        # self.angular_speed_distance_allowance = 0.06
         self.angle_allowance = np.deg2rad(1)
         self.obstacle_clearance = 0.045  # m
 
@@ -63,7 +71,8 @@ class Environment:
 
         self.hidden_obstacles: set[Obstacle] = hidden_obstacles
 
-    def generate_checkpoints_for_exploration(self, main_checkpoint: Checkpoint, side: int):
+    @staticmethod
+    def generate_checkpoints_for_exploration(main_checkpoint: Checkpoint, side: int):
         move_back_distance = 0.1
         move_back = Checkpoint(main_checkpoint.x - move_back_distance * np.cos(main_checkpoint.a),
                                main_checkpoint.y - move_back_distance * np.sin(main_checkpoint.a),
@@ -118,7 +127,7 @@ class Environment:
                 continue
             found = True
 
-            if idx > current_checkpoint_idx:
+            if idx > current_checkpoint_idx - 1:
                 self.checkpoints[idx] = new_checkpoint
 
                 if finish_node:
@@ -170,12 +179,12 @@ class Environment:
 
     def simulate_movement(self, move, time):
         # Introduce noise in linear and angular velocities
-        linear_noise = 0 * np.random.normal(0, 0.05)  # Mean 0, standard deviation 0.05
-        angular_noise = 0 * np.random.normal(0, 0.1)  # Mean 0, standard deviation 0.01
+        # linear_noise = np.random.normal(0, 0.05)  # Mean 0, standard deviation 0.05
+        # angular_noise = np.random.normal(0, 0.1)  # Mean 0, standard deviation 0.01
 
         # Apply the noise to the movement values
-        noisy_linear = move[0] + linear_noise
-        noisy_angular = move[1] + angular_noise
+        noisy_linear = move[0]
+        noisy_angular = move[1]
 
         measured_delta_x = np.cos(self.real_robot.a) * move[0] * time
         measured_delta_y = np.sin(self.real_robot.a) * move[0] * time
@@ -187,7 +196,7 @@ class Environment:
         # Update the robot's position and orientation with the noisy values
         self.real_robot.x += measured_delta_x
         self.real_robot.y += measured_delta_y
-        self.real_robot.a += measured_delta_theta
+        self.real_robot.a += measured_delta_theta * 1.0989
 
         # Normalize the angle
         self.real_robot.a = np.arctan2(np.sin(self.real_robot.a), np.cos(self.real_robot.a))
@@ -206,8 +215,8 @@ class Environment:
             if (true_distance_to_obstacle <= self.real_robot.max_detection_range and
                     -self.real_robot.fov_angle / 2 <= true_angle_to_obstacle <= self.real_robot.fov_angle / 2):
                 # Add noise to distance and angle measurements
-                distance_noise = 0 * np.random.normal(0, 0.03)
-                angle_noise = 0 * np.random.normal(0, np.radians(1))
+                distance_noise = np.random.normal(0, 0.015)
+                angle_noise = np.random.normal(0, np.radians(0.1))
 
                 # Ensure that the measurements are scalar
                 measured_distance = min(self.real_robot.max_detection_range,

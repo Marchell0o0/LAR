@@ -14,8 +14,8 @@ class PathExecution:
         self.current_next_node = None
         self.current_checkpoint_idx = 0
 
-        self.max_lookahead_distance = 0.3
-        self.min_lookahead_distance = 0.05
+        self.max_lookahead_distance = 0.7
+        self.min_lookahead_distance = 0.025
         self.current_lookahead_distance = self.max_lookahead_distance
 
         self.path = []
@@ -52,15 +52,10 @@ class PathExecution:
                 idx = i
                 self.current_lookahead_distance = dist
 
-        if distance(self.env.robot, self.env.checkpoints[self.current_checkpoint_idx]) < min_dist:
-            self.current_lookahead_distance = dist
-            self.lookahead_point = (self.env.checkpoints[self.current_checkpoint_idx].x,
-                                    self.env.checkpoints[self.current_checkpoint_idx].y)
-            return
-
-        # Define coefficients for the cubic interpolation
-        # a = 2 * (self.max_lookahead_distance - self.min_lookahead_distance) / (np.pi / 2)**3
-        a = (self.min_lookahead_distance - self.max_lookahead_distance) / (np.pi / 2) ** (1 / 3)
+        # Define coefficients for the interpolation
+        interpolation_power = 1 / 10
+        a = ((self.min_lookahead_distance - self.max_lookahead_distance)
+             / (np.pi / 2) ** interpolation_power)
         d = self.max_lookahead_distance
 
         for i in range(idx + 1, len(self.path)):
@@ -77,35 +72,13 @@ class PathExecution:
             angle_difference = np.arctan2(np.sin(angle_difference), np.cos(angle_difference))
 
             # Calculate the lookahead distance using cubic interpolation
-            probable_lookahead = a * abs(angle_difference) ** (1 / 3) + d
+            probable_lookahead = a * abs(angle_difference) ** interpolation_power + d
 
             if dist < probable_lookahead:
                 idx = i
                 self.current_lookahead_distance = dist
         # Set the lookahead point
         self.lookahead_point = (self.path[idx].x, self.path[idx].y)
-
-        dist = distance(self.env.robot, self.env.checkpoints[self.current_checkpoint_idx])
-        if dist < self.min_lookahead_distance:
-            self.current_lookahead_distance = dist
-            self.lookahead_point = (self.env.checkpoints[self.current_checkpoint_idx].x,
-                                    self.env.checkpoints[self.current_checkpoint_idx].y)
-            return
-
-        dx = self.env.checkpoints[self.current_checkpoint_idx].x - self.env.robot.x
-        dy = self.env.checkpoints[self.current_checkpoint_idx].y - self.env.robot.y
-
-        angle_difference = np.arctan2(dy, dx) - self.env.robot.a
-        angle_difference = np.arctan2(np.sin(angle_difference), np.cos(angle_difference))
-
-        # Calculate the lookahead distance using cubic interpolation
-        probable_lookahead = a * abs(angle_difference) ** (1 / 3) + d
-
-        if dist < probable_lookahead:
-            self.current_lookahead_distance = dist
-            self.lookahead_point = (self.env.checkpoints[self.current_checkpoint_idx].x,
-                                    self.env.checkpoints[self.current_checkpoint_idx].y)
-            return
 
     def get_closest_node_curvature(self):
         min_dist = 100
@@ -141,11 +114,11 @@ class PathExecution:
                 normalized_diff = abs(angle_difference) / (np.pi / 4)
 
                 # Linear interpolation between max and min angular speed
-                angular_speed = ((self.env.robot.max_angular_speed * 2 - self.env.robot.min_angular_speed)
+                angular_speed = ((self.env.robot.max_angular_speed - self.env.robot.min_angular_speed)
                                  * normalized_diff + self.env.robot.min_angular_speed)
 
                 # Ensure angular speed does not drop below the minimum
-                angular_speed = min(angular_speed, self.env.robot.max_angular_speed * 2)
+                angular_speed = min(angular_speed, self.env.robot.max_angular_speed)
                 angular_speed = max(angular_speed, self.env.robot.min_angular_speed)
 
                 direction = -np.sign(angle_difference)
@@ -172,6 +145,9 @@ class PathExecution:
         between_angle = np.arctan2(np.sin(between_angle), np.cos(between_angle))
         direction = -np.sign(between_angle)
 
+        if self.current_lookahead_distance < 0.0001:
+            self.current_lookahead_distance = 0.0001
+
         lookahead_curvature = (2 * x) / (self.current_lookahead_distance ** 2)
 
         if abs(between_angle) > np.pi / 2:
@@ -179,21 +155,18 @@ class PathExecution:
         else:
             linear_speed_scale = ((np.pi / 2) - abs(between_angle)) / \
                                  (np.pi / 2) * self.current_lookahead_distance / self.max_lookahead_distance
-            linear_speed = self.env.robot.linear_speed * linear_speed_scale
+            linear_speed = self.env.robot.max_linear_speed * linear_speed_scale
             linear_speed = max(self.env.robot.min_linear_speed, linear_speed)
 
         self.get_to_desired_speed(linear_speed)
 
-        # if self.current_lookahead_distance < self.env.robot.angular_speed_distance_allowance:
-            # angular_speed = 0
-        # else:
         if abs(between_angle) < np.pi / 2:
             angular_speed = self.env.robot.max_angular_speed * lookahead_curvature
+            angular_speed = min(angular_speed, self.env.robot.max_angular_speed)
+            angular_speed = direction * angular_speed
         else:
             angular_speed = self.env.robot.max_angular_speed
 
-        angular_speed = min(angular_speed, self.env.robot.max_angular_speed)
-        angular_speed = direction * angular_speed
         return self.current_speed, angular_speed
 
     def get_current_move(self):

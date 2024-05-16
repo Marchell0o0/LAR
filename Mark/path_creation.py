@@ -110,7 +110,11 @@ class PathCreation:
 
             # Add the original end_node to the path
             new_path.append(end_node)
-        # new_path.append(path[len(path) - 1])
+
+        projection_angle = np.arctan2(path[-1].y - path[-2].y, path[-1].x - path[-2].x)
+        new_path.append(Node(path[-1].x + self.node_frequency_on_injection * np.cos(projection_angle),
+                             path[-1].y + self.node_frequency_on_injection * np.sin(projection_angle)))
+
         return new_path
 
     def smoother(self, path):

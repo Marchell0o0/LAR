@@ -107,33 +107,32 @@ def main():
     #                     [],
     #                     [Obstacle(0.5, 0.5, 0)])
 
-    # env = Environment(Robot(0, 0, 0), Robot(0, 0, 0),
-    #                   [
-    #                       # Checkpoint(0, 0, np.pi / 2),
-    #                       # Checkpoint(0, 0, np.pi),
-    #                       # Checkpoint(0, 0, -np.pi / 2),
-    #                       # Checkpoint(0, 0, 0)
-    #                   ],
-    #                   [],
-    #                   [Obstacle(1, 0.05, 0),
-    #                    Obstacle(1, -0.05, 1),
-    #                    Obstacle(0.5, 0.6, 2),
-    #                    Obstacle(1.45, 1.3, 0),
-    #                    Obstacle(1.50, 1.25, 1),
-    #                    Obstacle(0, 1.60, 2),
-    #                    Obstacle(0.05, 1.65, 2),
-    #                    Obstacle(-1.25, 0, 2),
-    #                    Obstacle(-1.35, 0, 2)])
-
     env = Environment(Robot(0, 0, 0), Robot(0, 0, 0),
                       [
-                          # Checkpoint(0, 0, np.pi/2),
-                          #  Checkpoint(0, 0, np.pi),
-                          #  Checkpoint(0, 0, -np.pi/2),
-                          #  Checkpoint(0, 0, 0)
+                          # Checkpoint(0, 0, np.pi / 2),
+                          # Checkpoint(0, 0, np.pi),
+                          # Checkpoint(0, 0, -np.pi / 2),
+                          # Checkpoint(0, 0, 0)
                       ],
                       [],
-                      [])
+                      [Obstacle(1, 0.05, 0),
+                       Obstacle(1, -0.05, 1),
+                       Obstacle(0.5, 0.6, 2),
+                       Obstacle(1.45, 1.3, 0),
+                       Obstacle(1.50, 1.25, 1),
+                       Obstacle(0, 1.60, 2),
+                       Obstacle(0.05, 1.65, 2)
+                       ])
+
+    # env = Environment(Robot(0, 0, 0), Robot(0, 0, 0),
+    #                   [
+    #                       # Checkpoint(0, 0, np.pi/2),
+    #                       #  Checkpoint(0, 0, np.pi),
+    #                       #  Checkpoint(0, 0, -np.pi/2),
+    #                       #  Checkpoint(0, 0, 0)
+    #                   ],
+    #                   [],
+    #                   [])
 
     path_creation = PathCreation(env)
     path_execution = PathExecution(env, path_creation)
@@ -165,9 +164,9 @@ def main():
     print("Starting main loop")
     while running:
         if visualization:
-            if counter % 2 == 0:
-                vis.draw_everything()
-                vis.show_cv2()
+            # if counter % 2 == 0:
+            vis.draw_everything()
+            vis.show_cv2()
 
         if turtlebot:
             if (cv2.waitKey(1) & 0xFF == ord('q')) or turtle.is_shutting_down():
@@ -179,7 +178,7 @@ def main():
             # else:
                 # turtle.cmd_velocity(angular=0, linear=0)
 
-            rate.sleep()
+            # rate.sleep()
 
             # robot isn't moving quickly
             print("Getting camera readings")

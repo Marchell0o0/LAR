@@ -6,12 +6,12 @@ class KalmanFilter:
     def __init__(self, env):
         self.env = env
         self.sigma = 0.01 * np.eye(3, dtype=float)
-        self.R = np.diag([0.0001, 0.0001, 0.001])  # sigma x, y, a
-        self.Q_obstacles = np.diag([0.05, np.deg2rad(0.5), 0.0001])  # sigma r, phi, color
+        self.R = np.diag([0.0001, 0.0001, 0.01])  # sigma x, y, a
+        self.Q_obstacles = np.diag([0.02, np.deg2rad(0.1), 0.0001])  # sigma r, phi, color
 
         # acceptable mahalanobis distance
         self.alpha = 4
-        self.alpha_for_green = 0.1
+        self.alpha_for_green = 0.3
 
         self.mu = np.array([[self.env.robot.x], [self.env.robot.y], [self.env.robot.a]], dtype=np.float64)
 
