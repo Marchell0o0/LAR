@@ -171,45 +171,45 @@ def main():
         if turtlebot:
             if (cv2.waitKey(1) & 0xFF == ord('q')) or turtle.is_shutting_down():
                 running = False
-            print("Deciding next move")
-            next_move = path_execution.get_current_move()
-            # if counter_since_new_checkpoint > 20:
+            # print("Deciding next move")
+            # next_move = path_execution.get_current_move()
+            next_move = (0, 0)
             turtle.cmd_velocity(angular=next_move[1], linear=next_move[0])
-            # else:
-                # turtle.cmd_velocity(angular=0, linear=0)
 
             # rate.sleep()
 
             # robot isn't moving quickly
-            print("Getting camera readings")
+            # print("Getting camera readings")
             image = turtle.get_rgb_image()
             pc_image = turtle.get_point_cloud()
-            if counter % 10 == 0:
-                print("Saving files")
-                np.save(f"camera/{counter}-rgb.npy", image)
-                np.save(f"camera/{counter}-pc.npy", pc_image)
-                cv2.imwrite(f"camera/{counter}-rgb.png", image)
+            # if counter % 10 == 0:
+            #     print("Saving files")
+            #     np.save(f"camera/{counter}-rgb.npy", image)
+            #     np.save(f"camera/{counter}-pc.npy", pc_image)
+            #     cv2.imwrite(f"camera/{counter}-rgb.png", image)
 
-            print("Obstacle recognition")
+            # print("Obstacle recognition")
             rectg_processor = RectangleProcessor(image,
                                                     pc_image,
                                                     color_settings,
                                                     color_adapt_queue)
             detected_rectgs, masked_rectgs, image_rectg, _ = rectg_processor.process_image()
 
-            if next_move[1] < 0.1:
-                obstacle_measurements = detected_rectgs
-                # if image_rectg is not None:
-                #     cv2.imshow('RGB Camera', image_rectg)
-                    # print(obstacle_measurements)
-            else:
-                obstacle_measurements = []
+            obstacle_measurements = detected_rectgs
+            print("Measured data:", obstacle_measurements)
+
+            if image_rectg is not None:
+                cv2.imshow('RGB Camera', image_rectg)
+
+            # if next_move[1] < 0.1:
+            # else:
+            #     obstacle_measurements = []
                 # print("Turning too fast")
 
             current_odometry = turtle.get_odometry()
             odometry_change = current_odometry - previous_odometry
 
-            # TODO TEST THIS
+            # TODO: TEST THIS
             odometry_change[2] *= 1.0989
 
             # start recording odometry changes right after using it
@@ -223,11 +223,11 @@ def main():
             kalman_filter.obstacles_measurement_update(obstacle_measurements)
             kalman_filter.update_for_visualization()
 
-            if env.update_checkpoints(path_execution.current_checkpoint_idx):
-                counter_since_new_checkpoint = 0
+            # if env.update_checkpoints(path_execution.current_checkpoint_idx):
+            #     counter_since_new_checkpoint = 0
 
-            path_execution.update_path()
-            counter_since_new_checkpoint += 1
+            # path_execution.update_path()
+            # counter_since_new_checkpoint += 1
 
         else:
             if cv2.waitKey(1) & 0xFF == ord('q'):

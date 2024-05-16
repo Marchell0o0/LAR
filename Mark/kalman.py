@@ -171,6 +171,8 @@ class KalmanFilter:
             z_actual = np.reshape(z_actual, (3, 1))
 
             z_delta = z_actual - z_hat
+            print("Difference of measurement from current data for:", measured_obstacle)
+            print("Is: (x, y, color)", z_delta)
             z_delta[1] = np.arctan2(np.sin(z_delta[1]), np.cos(z_delta[1]))
 
             H = self.calculate_jacobian(delta, q, closest_idx)
