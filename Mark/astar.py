@@ -3,28 +3,6 @@ import numpy as np
 import heapq
 
 
-class PriorityQueue:
-    def __init__(self, goal):
-        self.goal = goal
-        self.elements = []
-
-    def put(self, item, priority=None):
-        if priority is None:
-            priority = self.heuristic(item, self.goal)
-        heapq.heappush(self.elements, (priority, item))
-
-    def get(self):
-        return heapq.heappop(self.elements)[1]
-
-    def empty(self):
-        return not self.elements
-
-    @staticmethod
-    def heuristic(node1, node2):
-        # Euclidean distance as a simple heuristic
-        return distance(node1, node2)
-
-
 class Node:
     def __init__(self, x, y):
         self.x = x
@@ -50,6 +28,27 @@ class Node:
 
 def distance(point1: Node, point2: Node):
     return np.sqrt((point1.x - point2.x) ** 2 + (point1.y - point2.y) ** 2)
+
+
+class PriorityQueue:
+    def __init__(self, goal):
+        self.goal = goal
+        self.elements = []
+
+    def put(self, item, priority=None):
+        if priority is None:
+            priority = self.heuristic(item, self.goal)
+        heapq.heappush(self.elements, (priority, item))
+
+    def get(self):
+        return heapq.heappop(self.elements)[1]
+
+    def empty(self):
+        return not self.elements
+
+    @staticmethod
+    def heuristic(node1, node2):
+        return distance(node1, node2)
 
 
 class AStar:

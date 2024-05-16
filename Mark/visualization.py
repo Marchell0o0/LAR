@@ -14,8 +14,8 @@ class RobotVisualization:
         pygame.init()
         # self.base_size = (3840, 3840) # 4K square
         # self.base_size = (1080, 1080)
-        self.base_size = (500, 500)
-        # self.base_size = (400, 400)
+        # self.base_size = (500, 500)
+        self.base_size = (400, 400)
         # self.base_size = (250, 250)
         self.screen = pygame.display.set_mode(self.base_size)
         self.clock = pygame.time.Clock()

@@ -124,8 +124,6 @@ class ColorSettings:
     
     # USE FOR A ROBOT
     def calibrate_color(self, turtle):
-        # TODO: check if this Rate is alright
-        rate = Rate(100)
         
         # Define a small threshold (epsilon), for example, 0.1
         epsilon = 0.03
@@ -158,7 +156,6 @@ class ColorSettings:
                         turtle.cmd_velocity(angular=math.pi/2)
                         last_triggered_multiple = nearest_multiple
 
-                rate.sleep()
                 a = turtle.get_odometry()[2]
             
             turtle.cmd_velocity(angular=0)

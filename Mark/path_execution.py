@@ -134,7 +134,7 @@ class PathExecution:
                     self.env.checkpoints[self.current_checkpoint_idx]) < self.env.robot.distance_allowance:
             angle_difference = self.env.robot.a - self.env.checkpoints[self.current_checkpoint_idx].a
             angle_difference = np.arctan2(np.sin(angle_difference), np.cos(angle_difference))
-            print("Distance to the checkpoint is small enough")
+            # print("Distance to the checkpoint is small enough")
             # Calculate the angular speed based on how close the robot is to the desired angle
             if abs(angle_difference) > self.env.robot.angle_allowance:
                 # Normalize the difference within the range of 0 to 1

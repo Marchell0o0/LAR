@@ -63,7 +63,7 @@ class Environment:
 
         self.hidden_obstacles: set[Obstacle] = hidden_obstacles
 
-    def generate_checkpoints_for_exploration(self, main_checkpoint: Checkpoint, side: int) -> list[Checkpoint]:
+    def generate_checkpoints_for_exploration(self, main_checkpoint: Checkpoint, side: int):
         move_back_distance = 0.1
         move_back = Checkpoint(main_checkpoint.x - move_back_distance * np.cos(main_checkpoint.a),
                                main_checkpoint.y - move_back_distance * np.sin(main_checkpoint.a),
