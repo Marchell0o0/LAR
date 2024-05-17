@@ -33,7 +33,9 @@ class RobotVisualization:
 
         self.center_x = 0
         self.center_y = 0
-        self.range = 0
+        self.range = 1
+        self.range_change_threshold = 0.05
+        self.center_change_threshold = 0.05
         self.find_limits()
 
         self.grid_surface = None
@@ -291,6 +293,29 @@ class RobotVisualization:
     def get_length_in_pixels(self, length):
         return int(self.base_size[0] * (length / self.range))
 
+    # def find_limits(self):
+    #     # Collect all x and y coordinates from robots, checkpoints, and obstacles
+    #     all_x = [self.env.robot.x] + \
+    #             [ob.x for ob in self.env.obstacles] + \
+    #             [cp.x for cp in self.env.checkpoints] + \
+    #             [node.x for node in self.path_execution.path]
+    #
+    #     all_y = [self.env.robot.y] + \
+    #             [ob.y for ob in self.env.obstacles] + \
+    #             [cp.y for cp in self.env.checkpoints] + \
+    #             [node.y for node in self.path_execution.path]
+    #
+    #     min_x, max_x = min(all_x), max(all_x)
+    #     min_y, max_y = min(all_y), max(all_y)
+    #     # Find the largest range to ensure a square aspect ratio
+    #     range_x = max_x - min_x
+    #     range_y = max_y - min_y
+    #     self.range = max(range_x, range_y) + self.margin
+    #     self.range = max(2, self.range)
+    #     # Calculate new min and max for both x and y to be centered
+    #     self.center_x = (max_x + min_x) / 2
+    #     self.center_y = (max_y + min_y) / 2
+
     def find_limits(self):
         # Collect all x and y coordinates from robots, checkpoints, and obstacles
         all_x = [self.env.robot.x] + \
@@ -305,14 +330,28 @@ class RobotVisualization:
 
         min_x, max_x = min(all_x), max(all_x)
         min_y, max_y = min(all_y), max(all_y)
+
         # Find the largest range to ensure a square aspect ratio
         range_x = max_x - min_x
         range_y = max_y - min_y
-        self.range = max(range_x, range_y) + self.margin
-        self.range = max(2, self.range)
+        new_range = max(range_x, range_y) + self.margin
+        new_range = max(2, new_range)
+
         # Calculate new min and max for both x and y to be centered
-        self.center_x = (max_x + min_x) / 2
-        self.center_y = (max_y + min_y) / 2
+        new_center_x = (max_x + min_x) / 2
+        new_center_y = (max_y + min_y) / 2
+
+        # Update range if the change is greater than the threshold
+        if abs(new_range - self.range) > self.range_change_threshold:
+            self.range = new_range
+
+        # Update center_x if the change is greater than the threshold
+        if abs(new_center_x - self.center_x) > self.center_change_threshold:
+            self.center_x = new_center_x
+
+        # Update center_y if the change is greater than the threshold
+        if abs(new_center_y - self.center_y) > self.center_change_threshold:
+            self.center_y = new_center_y
 
     def initialize_grid(self):
         self.grid_surface = pygame.Surface(self.screen.get_size())
