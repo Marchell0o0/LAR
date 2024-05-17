@@ -228,19 +228,18 @@ class RectangleProcessor:
                         # print(f"Z TRUE of {point} element is: {true_distance}")
                     
                     Uleh.utils.remove_values_excluding_outliers(distances, outlier_distance) 
-                    if len(distances) != 0: 
+                    if len(distances) != 0 and len(y_coords) != 0: 
                         rectangle_distance = np.mean(distances)   
                         rectangle_y = np.mean(y_coords)
-                    else:
-                        rectangle_distance = None
-                        rectangle_y = None
-                        # print("FINAL Y or DISTANCE is EMPTY")
-                        pc_error_counter += 1
+                    # else:
+                    #     rectangle_distance = None
+                    #     rectangle_y = None
+                    #     # print("FINAL Y or DISTANCE is EMPTY")
+                    #     pc_error_counter += 1
                     
-                    if (not np.isnan(rectangle_y) and
-                        rectangle_y is not None and
-                        not np.isnan(rectangle_distance) and
-                        rectangle_distance is not None):
+                    # if (rectangle_y is not None and
+                    #     not np.isnan(rectangle_distance) and
+                    #     rectangle_distance is not None):
                         
                         rectangle_angle = Uleh.utils.calculate_angle(rectangle_y, rectangle_distance)
                         
@@ -267,7 +266,7 @@ class RectangleProcessor:
                             Uleh.utils.draw_rectangle(result_mask, original_image, rectangle)
                             # print(rectangle)
                     else:
-                        print("FINAL Y or DISTANCE is NaN")
+                        # print("FINAL Y or DISTANCE is NaN")
                         pc_error_counter += 1
         
         # print(f"ALMOST RECTANGLES: {almost_rectg_counter}")        

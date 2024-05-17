@@ -53,7 +53,7 @@ def is_within_range_distance(aspect_ratio, distance, area):
         is_within_range(area, [800, 2000])):
         is_in_range = True
     if is_in_range == False:
-        print(f"Rectangle outside boundaries - aspect ratio: {aspect_ratio}, distance: {distance}")
+        # print(f"Rectangle outside boundaries - aspect ratio: {aspect_ratio}, distance: {distance}")
     return is_in_range
         
         
@@ -260,7 +260,7 @@ def remove_values_excluding_outliers(values, threshold):
         for value in values:
             if abs(value - median_value) > threshold:
                 values.remove(value)
-                print(f"Excluded {value} as it's too far from the median.")
+                # print(f"Excluded {value} as it's too far from the median.")
     elif len(values) == 2:
         if max(values) - min(values) > threshold:
             values = []
