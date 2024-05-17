@@ -53,21 +53,36 @@ class Rectangle:
                 "-----------------------\n ")
 
 class RectangleProcessor:
-    def __init__(self, image, pc_image, color_settings, color_adapt_queue, show_image=False) -> None:
+    def __init__(self,
+                 image,
+                 pc_image,
+                 color_settings,
+                 color_adapt_queue,
+                 dev_adapt_queue,
+                 sat_adapt_queue,
+                 show_image=False) -> None:
+        
         self.image = image
         self.pc_image = pc_image
         self.color_settings = color_settings
         self.color_adapt_queue = color_adapt_queue
+        self.dev_adapt_queue = dev_adapt_queue
+        self.sat_adapt_queue = sat_adapt_queue
         self.rectangles: List[Rectangle] = []
         self.show_image = show_image
 
     def detect_labels(self, image_mask,
-                    min_area = 1000,
+                    min_area = 800,
                     aspect_ratio_range = [2, 8]
                     ):
         
         result_mask = np.zeros_like(image_mask)
         original_image = self.image.copy()
+        
+        # image_mask = cv2.GaussianBlur(image_mask, (5, 5), 0)
+        # cv2.imshow('Blured mask', image_mask)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
         
         numLabels, labels, stats, centroids = cv2.connectedComponentsWithStats(
             image_mask,
@@ -112,31 +127,34 @@ class RectangleProcessor:
                 #             (int(cX - width),
                 #             int(cY)),
                 #             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
-                
         return result_mask, original_image
 
     def detect_rectangles(self, 
                         image_mask,
                         image_labels,
                         epsilon = 0.02,
-                        min_vertices = 5,
+                        vertices_range = [4, 6],
                         min_area = 800,
-                        aspect_ratio_range = [2, 8],
-                        y_offset=-0.08):
+                        aspect_ratio_range = [2, 8]):
         result_mask = np.zeros_like(image_mask)
         original_image = image_labels.copy()
 
+        image_mask = cv2.GaussianBlur(image_mask, (7, 7), 0)
+
         # TODO: remove almost_rectg_counter
         # almost_rectg_counter = 0
+        
+        pc_error_counter = 0
 
-        # image_mask = cv2.GaussianBlur(image_mask, (3, 3), 0)
         # image_mask = cv2.blur(image_mask,(9,9))
 
-        # Find edges in the image using Canny
+        # Find edges in the image using Cannyq
         # edges = cv2.Canny(image_mask, 50, 150)
 
         contours, _ = cv2.findContours(image_mask,
+                                    # was RETR_TREE 16.05
                                     cv2.RETR_TREE,
+                                    # cv2.RETR_EXTERNAL,
                                     cv2.CHAIN_APPROX_SIMPLE
                                     )
         
@@ -166,7 +184,7 @@ class RectangleProcessor:
                 Uleh.utils.is_within_range(aspect_ratio, aspect_ratio_range)):
                 # TODO: remove almost_rectg_counter
                 # almost_rectg_counter += 1
-                if num_vertices <= min_vertices:
+                if Uleh.utils.is_within_range(num_vertices, vertices_range):
                     cX = int(M["m10"] / M["m00"])
                     cY = int(M["m01"] / M["m00"])
                     min_area_rect = cv2.minAreaRect(approx)
@@ -180,6 +198,8 @@ class RectangleProcessor:
                     
                     y_coords = []
                     distances = []
+                    # true_distances = []
+                    
                     points = Uleh.utils.calculate_rectangle_points(self.image, cX, cY, height, width, angle_rot)
                     for point in points[:3]:
                         rectangle_y, rectangle_distance = Uleh.depth.find_point_pc_coords(self.pc_image,
@@ -191,20 +211,28 @@ class RectangleProcessor:
                             y_coords.append(rectangle_y)
                         if not np.isnan(rectangle_distance) and rectangle_distance is not None:
                             distances.append(rectangle_distance)
+                        # if not np.isnan(value_true) and value_true is not None:
+                        #     true_distances.append(value_true)
                     
+                    # if len(true_distances) != 0:   
+                    #     value_true = np.mean(true_distances) 
+                            
                     # TODO: rewrite error checking
-                    if len(y_coords) != 0 and len(distances):   
-                        rectangle_y = np.mean(y_coords)
+                    if len(y_coords) != 0 and len(distances) != 0:
+                        Uleh.utils.remove_values_excluding_outliers(distances, 0.1)  
                         rectangle_distance = np.mean(distances)   
+                        rectangle_y = np.mean(y_coords)
+                    else:
+                        print("FINAL Y or DISTANCE is EMPTY")
+                        pc_error_counter += 1
                     
                     if (not np.isnan(rectangle_y) and
                         not np.isnan(rectangle_distance)):
                         
-                        rectangle_y += y_offset
-                        
                         rectangle_angle = Uleh.utils.calculate_angle(rectangle_y, rectangle_distance)
                         
-                        if rectangle_angle is not None:
+                        if (rectangle_angle is not None and
+                            Uleh.utils.is_within_range_distance(aspect_ratio, rectangle_distance)):
                     
                             rectangle = Rectangle(
                                                 area,
@@ -224,10 +252,14 @@ class RectangleProcessor:
                             
                             self.rectangles.append(rectangle)
                             Uleh.utils.draw_rectangle(result_mask, original_image, rectangle)
-                            # print(rectangle)
+                            print(rectangle)
+                    else:
+                        print("FINAL Y or DISTANCE is NaN")
+                        pc_error_counter += 1
         
         # print(f"ALMOST RECTANGLES: {almost_rectg_counter}")        
         # print("Number of rectangles: ", len(self.rectangles))
+        # print(f"Number of errors for PC: ", pc_error_counter)
         
         return self.rectangles, result_mask, original_image
     
@@ -238,8 +270,9 @@ class RectangleProcessor:
         
         if self.image is not None and self.pc_image is not None:
             for color_name in colors:
+
+                # TODO: remove color_params argument from create_mask
                 result_masked[color_name] = Uleh.color.create_mask(self.image,
-                                                            self.color_settings,
                                                             color_name,
                                                             self.color_settings.calib_values)
             
@@ -255,22 +288,13 @@ class RectangleProcessor:
                 self.rectangles,
                 self.image,
                 self.color_settings,
-                self.color_adapt_queue)
+                self.color_adapt_queue,
+                self.dev_adapt_queue,
+                self.sat_adapt_queue)
             
             cylinders = []
             
             for rectg in self.rectangles:
-                
-                # if (self.color_settings.calib_values["blue"]["color_reassigned"] == True and
-                # self.color_settings.calib_values["red"]["color_reassigned"] == True):
-                
-                # skip nonvalid measurements
-                if 0.3 > rectg.distance or 2 < rectg.distance:
-                    # print("skipping a measured obstacle")
-                    continue
-                
-
-
                 # R
                 if rectg.color == 250:
                     rectg_color = 0
@@ -283,7 +307,9 @@ class RectangleProcessor:
                 # Unknown color    
                 else:
                     rectg_color = 3
-                cylinders.append((rectg.distance + 0.025, -rectg.angle_pos, rectg_color))
+                    
+                if rectg_color != 3:
+                    cylinders.append((rectg.distance, -rectg.angle_pos, rectg_color))
             
             if self.show_image == True:
                 # cv2.imshow('Masked labels', masked_labels)
@@ -298,5 +324,6 @@ class RectangleProcessor:
             masked_rectangles = None
             image_rectangles = None
             self.rectangles = None
-        
-        return cylinders, masked_rectangles, image_rectangles, self.rectangles
+        # TODO: WARNING uncomment the first line instead of the second
+        # return cylinders, masked_rectangles, image_rectangles, self.rectangles
+        return cylinders, combined_mask, image_rectangles, self.rectangles

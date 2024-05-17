@@ -13,17 +13,19 @@ from Uleh.saturation import calculate_saturation_threshold, calculate_saturation
 class ColorSettings:
     def __init__(
         self, 
-        blue_range=[70, 130],
-        # was blue_deviation=50 01.05.2024
-        blue_deviation=70,
-        green_range=[35, 65],
-        # was green_deviation=70 01.05.2024
+        # was blue_range=[70, 130] 15.05.2024
+        blue_range=[80, 130],
+        # was blue_deviation=50 15.05.2024
+        blue_deviation=50,
+        # was green_range=[35, 65] 15.05.2024
+        green_range=[50, 65],
+        # was green_deviation=50 16.05.2024
         green_deviation=50,
-        # was red_range=[0, 4] 10.05.2024
         red_range=[0, 4],
-        # was red_deviation=70 10.05.2024
-        red_deviation=70,
-        saturation_range=[20, 235]
+        # was red_deviation = 70 16.05
+        red_deviation=50,
+        # was saturation_range=[20, 235] 15.05.2024
+        saturation_range=[20, 235] 
         ) -> None:
         self.blue_range = blue_range
         self.blue_deviation = blue_deviation
@@ -41,21 +43,56 @@ class ColorSettings:
                 } for color_name in self.colors}
         self.calib_values = {
             color_name: {
-                    "hue_avg": 0,
-                    "dev_avg": 0,
-                    "sat_avg": 0,
-                    "color_reassigned": False
+                # default calib_values values
+                # 10000
+                # 1000
+                # 10000
+                    "hue_avg": 10000,
+                    "dev_avg": 1000,
+                    "sat_avg": 10000,
+                    "hue_reassigned": False,
+                    "dev_reassigned": False,
+                    "sat_reassigned": False
                     } for color_name in self.colors}
+        # self.calib_values = {
+        #     "blue": {
+        #             "hue_avg": 100,
+        #             "dev_avg": 15,
+        #             "sat_avg": 220,
+        #             "hue_reassigned": False,
+        #             "dev_reassigned": False,
+        #             "sat_reassigned": False
+        #             },
+        #     "green": {
+        #         # was hue_avg: 45
+        #             "hue_avg": 60,
+        #             "dev_avg": 15,
+        #             "sat_avg": 70,
+        #             "hue_reassigned": False,
+        #             "dev_reassigned": False,
+        #             "sat_reassigned": False
+        #             },
+        #     "red": {
+        #             "hue_avg": 2,
+        #             "dev_avg": 10,
+        #             "sat_avg": 180,
+        #             "hue_reassigned": False,
+        #             "dev_reassigned": False,
+        #             "sat_reassigned": False
+        #             }}
     
     def calculate_color_thresholds(self, image, color_name):
         # Access color-specific settings
         color_range = getattr(self, f"{color_name}_range")
         deviation_range = getattr(self, f"{color_name}_deviation")
         saturation_range = self.saturation_range
-        # TODO: remove hard code for a green color
+        # TODO: remove hard code for a green and red color
         if color_name == "green":
             saturation_threshold = calculate_saturation_threshold_green(image, saturation_range)
-        else:
+        elif color_name == "red":
+            saturation_threshold = calculate_saturation_threshold(image, saturation_range, color_name) - 50
+            # print(f"COUNTED SATURATION FOR RED WITH AN OFFSET 50: {saturation_threshold}")
+        elif color_name == "blue":
             saturation_threshold = calculate_saturation_threshold(image, saturation_range, color_name)
         hue_value, hue_deviation, hist_hue_smoothed = calculate_hue_params(
             image, 
@@ -81,49 +118,51 @@ class ColorSettings:
                 self.measured_values[color_name]["saturation_thresholds"].append(saturation_threshold)
         
         # Calculate averages
-        self.assign_calibration_values()
+        for color_name in self.colors:
+            self.assign_calibration_values(color_name)
         return
     
-    def watch_environment(self, image):
-        for color_name in self.colors:
-            hue_value, hue_deviation, saturation_threshold = self.calculate_color_thresholds(image, color_name)
+    # TODO: remove old function
+    # def watch_environment(self, image):
+    #     for color_name in self.colors:
+    #         hue_value, hue_deviation, saturation_threshold = self.calculate_color_thresholds(image, color_name)
             
+    #         self.measured_values[color_name]["hue_values"].append(hue_value)
+    #         self.measured_values[color_name]["hue_deviations"].append(hue_deviation)
+    #         self.measured_values[color_name]["saturation_thresholds"].append(saturation_threshold)  
+    #     return    
+    
+    def save_image_values(self, image, color_name):
+        hue_value, hue_deviation, saturation_threshold = self.calculate_color_thresholds(image, color_name)
+            
+        if not np.isnan(hue_value) and not np.isnan(hue_deviation) and not np.isnan(saturation_threshold):
             self.measured_values[color_name]["hue_values"].append(hue_value)
             self.measured_values[color_name]["hue_deviations"].append(hue_deviation)
-            self.measured_values[color_name]["saturation_thresholds"].append(saturation_threshold)  
-        return    
-    
-    def save_image_values(self, turtle):
-        
-        image = turtle.get_rgb_image()
-        
-        if image is not None:
-            for color_name in self.colors:
-                
-                    hue_value, hue_deviation, saturation_threshold = self.calculate_color_thresholds(image, color_name)
-                    
-                    if not np.isnan(hue_value) and not np.isnan(hue_deviation) and not np.isnan(saturation_threshold):
-                        self.measured_values[color_name]["hue_values"].append(hue_value)
-                        self.measured_values[color_name]["hue_deviations"].append(hue_deviation)
-                        self.measured_values[color_name]["saturation_thresholds"].append(saturation_threshold)
+            self.measured_values[color_name]["saturation_thresholds"].append(saturation_threshold)
         return
     
-    def assign_calibration_values(self):
-        for color_name in self.colors:
-            avg_hue = np.mean(self.measured_values[color_name]["hue_values"])
-            avg_deviation = np.mean(self.measured_values[color_name]["hue_deviations"])
-            avg_saturation = np.mean(self.measured_values[color_name]["saturation_thresholds"])
-            if not np.isnan(avg_hue) and not np.isnan(avg_deviation) and not np.isnan(avg_saturation):
-                self.calib_values[color_name]["hue_avg"] = int(avg_hue)
-                self.calib_values[color_name]["dev_avg"] = int(avg_deviation)
-                self.calib_values[color_name]["sat_avg"] = int(avg_saturation)
-                print(f"Average for {color_name}: Hue={int(avg_hue)}, Deviation={int(avg_deviation)}, Saturation Threshold={int(avg_saturation)}")
-            else:
-                raise ValueError("Unable to calibrate the camera: either avg_hue or avg_deviation or avg_saturation in NaN")
+    def assign_calibration_values(self, color_name):
+        
+        if (len(self.measured_values[color_name]["hue_values"]) == 0 or
+            len(self.measured_values[color_name]["hue_deviations"]) == 0 or
+            len(self.measured_values[color_name]["saturation_thresholds"]) == 0):
+            
+            raise ValueError("Unable to calibrate the camera: either avg_hue or avg_deviation or avg_saturation in NaN")
+        
+        avg_hue = np.mean(self.measured_values[color_name]["hue_values"])
+        avg_deviation = np.mean(self.measured_values[color_name]["hue_deviations"])
+        avg_saturation = np.mean(self.measured_values[color_name]["saturation_thresholds"])
+        if not np.isnan(avg_hue) and not np.isnan(avg_deviation) and not np.isnan(avg_saturation):
+            self.calib_values[color_name]["hue_avg"] = int(avg_hue)
+            self.calib_values[color_name]["dev_avg"] = int(avg_deviation)
+            self.calib_values[color_name]["sat_avg"] = int(avg_saturation)
+            print(f"Average for {color_name}: Hue={int(avg_hue)}, Deviation={int(avg_deviation)}, Saturation Threshold={int(avg_saturation)}")
+            
         return 
     
     # USE FOR A ROBOT
     def calibrate_color(self, turtle):
+        # TODO: check if this Rate is alright
         
         # Define a small threshold (epsilon), for example, 0.1
         epsilon = 0.03
@@ -150,22 +189,27 @@ class ColorSettings:
                         time.sleep(0.3)
                         
                         # ------Function to call------
-                        self.save_image_values(turtle)
+                        image = turtle.get_rgb_image()
+                        if image is not None:
+                            for color_name in self.colors:
+                                self.save_image_values(image, color_name)
                         # ---------------------------
                         
                         turtle.cmd_velocity(angular=math.pi/2)
                         last_triggered_multiple = nearest_multiple
 
+                # rate.sleep()
                 a = turtle.get_odometry()[2]
             
             turtle.cmd_velocity(angular=0)
             turtle.reset_odometry()
             time.sleep(0.5)
         
-        self.assign_calibration_values()
+        for color_name in self.colors:
+            self.assign_calibration_values(color_name)
         return    
     
-    def calculate_rectangle_color(self, rectg, image, sat_offset=20, sat_deviation=100):
+    def calculate_rectangle_color(self, rectg, image, sat_offset=40, sat_deviation=100):
         cX, cY = rectg.cX, rectg.cY
         height, width, angle_rot = rectg.height, rectg.width, rectg.angle_rot
         points = Uleh.utils.calculate_rectangle_points(image, cX, cY, height, width, angle_rot)
@@ -206,124 +250,133 @@ class ColorSettings:
             # sat_dif = np.abs(saturation_channel[py, px] - self.calib_values[color_name]["sat_avg"])
             # print(f"SAT difference: {sat_dif}")
                 # print(np.abs(saturation_channel[py, px] - self.calib_values[color_name]["sat_avg"]))
-                sat_values_new.append(saturation_channel[py, px] - sat_offset)
+                sat_values_new.append(saturation_channel[py, px])
                 # print(f"sat_value at {px, py} for {color_name} is: {saturation_channel[py, px]}")
                
         if len(hue_values_new) != 0 and len(sat_values_new) != 0:
             # print(hue_values_new)
             hue_value = int(np.mean(hue_values_new))
-            sat_value = int(np.mean(sat_values_new))
+            sat_value = int(np.mean(sat_values_new) - sat_offset)
         else:
             hue_value, sat_value = None, None
             
         return hue_value, sat_value 
     
-    def reassign_first_color_values(self, detected_rectgs, image):
-        # Assign color value corresponding to the color of found obstacle
-        if (self.calib_values["blue"]["color_reassigned"] == False or
-            self.calib_values["red"]["color_reassigned"] == False):
+    # def reassign_first_color_values(self, detected_rectgs, image):
+    #     # Assign color value corresponding to the color of found obstacle
+    #     if (self.calib_values["blue"]["color_reassigned"] == False or
+    #         self.calib_values["red"]["color_reassigned"] == False):
             
-            for rectg in detected_rectgs:
-                color_name = Uleh.utils.color_value_to_str(rectg.color)
-                if self.calib_values[color_name]["color_reassigned"] == False:
-                    hue_value, sat_value = self.calculate_rectangle_color(rectg, image)
-                    hue_avg = self.calib_values[color_name]["hue_avg"]
-                    sat_avg = self.calib_values[color_name]["sat_avg"]
-                    if hue_value is not None and sat_value is not None:
-                        self.calib_values[color_name]["hue_avg"] = hue_value
-                        self.calib_values[color_name]["sat_avg"] = sat_value
-                        print(f"New average HUE for {color_name}: {hue_avg}")
-                        print(f"New average SAT for {color_name}: {sat_avg}")
-        return
+    #         for rectg in detected_rectgs:
+    #             color_name = Uleh.utils.color_value_to_str(rectg.color)
+    #             if self.calib_values[color_name]["color_reassigned"] == False:
+    #                 hue_value, sat_value = self.calculate_rectangle_color(rectg, image)
+    #                 hue_avg = self.calib_values[color_name]["hue_avg"]
+    #                 sat_avg = self.calib_values[color_name]["sat_avg"]
+    #                 if hue_value is not None and sat_value is not None:
+    #                     self.calib_values[color_name]["hue_avg"] = hue_value
+    #                     self.calib_values[color_name]["sat_avg"] = sat_value
+    #                     print(f"New average HUE for {color_name}: {hue_avg}")
+    #                     print(f"New average SAT for {color_name}: {sat_avg}")
+    #     return
     
     # USE FOR A ROBOT
-    def adapt_image_colors(self, turtle, color_settings, color_adapt_queue):
-    # Assign color value corresponding to the color of found obstacle
-        from Uleh.rectangle import RectangleProcessor
+    # def adapt_image_colors(self, turtle, color_settings, color_adapt_queue):
+    # # Assign color value corresponding to the color of found obstacle
+    #     from Uleh.rectangle import RectangleProcessor
 
-        turtle.reset_odometry()
-        a = turtle.get_odometry()[2]
-        # Keeps track of the last multiple for which the condition was met
-        last_triggered_multiple = None
-        # Define a small threshold (epsilon), for example, 0.1
-        epsilon = 0.03
+    #     turtle.reset_odometry()
+    #     a = turtle.get_odometry()[2]
+    #     # Keeps track of the last multiple for which the condition was met
+    #     last_triggered_multiple = None
+    #     # Define a small threshold (epsilon), for example, 0.1
+    #     epsilon = 0.03
 
-        while ((self.calib_values["blue"]["color_reassigned"] == False or
-            self.calib_values["red"]["color_reassigned"] == False) and
-               not turtle.is_shutting_down()):
+    #     while ((self.calib_values["blue"]["color_reassigned"] == False or
+    #         self.calib_values["red"]["color_reassigned"] == False) and
+    #            not turtle.is_shutting_down()):
             
-            turtle.cmd_velocity(angular=math.pi/2)
+    #         turtle.cmd_velocity(angular=math.pi/2)
             
-            # Calculate the nearest multiple of π/6 to 'a'
-            nearest_multiple = round(a / (math.pi / 6)) * (math.pi / 6)
+    #         # Calculate the nearest multiple of π/6 to 'a'
+    #         nearest_multiple = round(a / (math.pi / 6)) * (math.pi / 6)
 
-            # Check if 'a' is within epsilon of the nearest multiple of π/6
-            if abs(a - nearest_multiple) < epsilon:
-                if nearest_multiple != last_triggered_multiple:
-                    print("Triggered at a multiple of π/6:", a)
-                    turtle.cmd_velocity(angular=0)
-                    time.sleep(0.3)
+    #         # Check if 'a' is within epsilon of the nearest multiple of π/6
+    #         if abs(a - nearest_multiple) < epsilon:
+    #             if nearest_multiple != last_triggered_multiple:
+    #                 print("Triggered at a multiple of π/6:", a)
+    #                 turtle.cmd_velocity(angular=0)
+    #                 time.sleep(0.3)
                     
-                    # ------Function to call------
-                    image = turtle.get_rgb_image()
-                    pc_image = turtle.get_point_cloud()
+    #                 # ------Function to call------
+    #                 image = turtle.get_rgb_image()
+    #                 pc_image = turtle.get_point_cloud()
                     
-                    rectg_processor = RectangleProcessor(image,
-                                                        pc_image,
-                                                        color_settings,
-                                                        color_adapt_queue)
-                    _, _, _, detected_rectgs  = rectg_processor.process_image()
+    #                 rectg_processor = RectangleProcessor(image,
+    #                                                     pc_image,
+    #                                                     color_settings,
+    #                                                     color_adapt_queue)
+    #                 _, _, _, detected_rectgs  = rectg_processor.process_image()
                     
-                    for rectg in detected_rectgs:
-                        color_name = Uleh.utils.color_value_to_str(rectg.color)
-                        # To continue both blue and red color must be reassigned
-                        if ((color_name == "blue" or color_name == "red") 
-                            and not self.calib_values[color_name]["color_reassigned"]):
+    #                 for rectg in detected_rectgs:
+    #                     color_name = Uleh.utils.color_value_to_str(rectg.color)
+    #                     # To continue both blue and red color must be reassigned
+    #                     if ((color_name == "blue" or color_name == "red") 
+    #                         and not self.calib_values[color_name]["color_reassigned"]):
                             
-                            self.calib_values[color_name]["color_reassigned"] = True
-                            print("*****************************")
-                            print(f"New average after REASSGINMENT for {color_name}: {self.calib_values[color_name]['hue_avg']}")
-                            print("*****************************")
+    #                         self.calib_values[color_name]["color_reassigned"] = True
+    #                         print("*****************************")
+    #                         print(f"New average after REASSGINMENT for {color_name}: {self.calib_values[color_name]['hue_avg']}")
+    #                         print("*****************************")
                     
-                    # update_image_colors(
-                    #     detected_rectgs,
-                    #     image,
-                    #     color_settings,
-                    #     color_adapt_queue)
+    #                 # update_image_colors(
+    #                 #     detected_rectgs,
+    #                 #     image,
+    #                 #     color_settings,
+    #                 #     color_adapt_queue)
                     
-                    # TODO: remove this old code    
-                    # for rectg in detected_rectgs:
-                    #     color_name = Uleh.utils.color_value_to_str(rectg.color)
-                    #     # To continue both blue and red color must be reassigned
-                    #     if ((color_name == "blue" or color_name == "red") 
-                    #         and not self.calib_values[color_name]["color_reassigned"]):
+    #                 # TODO: remove this old code    
+    #                 # for rectg in detected_rectgs:
+    #                 #     color_name = Uleh.utils.color_value_to_str(rectg.color)
+    #                 #     # To continue both blue and red color must be reassigned
+    #                 #     if ((color_name == "blue" or color_name == "red") 
+    #                 #         and not self.calib_values[color_name]["color_reassigned"]):
                             
-                    #         update_image_colors(rectgs, image, color_settings, color_adapt_queue)
+    #                 #         update_image_colors(rectgs, image, color_settings, color_adapt_queue)
                             
-                    #         print("*****************************")
-                    #         print(f"New average after REASSGINMENT for {color_name}: {self.calib_values[color_name]["hue_avg"]}")
-                    # ---------------------------
+    #                 #         print("*****************************")
+    #                 #         print(f"New average after REASSGINMENT for {color_name}: {self.calib_values[color_name]["hue_avg"]}")
+    #                 # ---------------------------
                     
-                    turtle.cmd_velocity(angular=math.pi/2)
-                    last_triggered_multiple = nearest_multiple
+    #                 turtle.cmd_velocity(angular=math.pi/2)
+    #                 last_triggered_multiple = nearest_multiple
 
-            a = turtle.get_odometry()[2]
+    #         a = turtle.get_odometry()[2]
         
-        turtle.cmd_velocity(angular=0)
-        turtle.reset_odometry()
-        return    
+    #     turtle.cmd_velocity(angular=0)
+    #     turtle.reset_odometry()
+    #     return    
 
 class ColorHueQueue:
-    def __init__(self, color_settings, max_length=10):
+    def __init__(self, color_settings, parameter, max_length=4):
         self.max_length = max_length
         self.color_settings = color_settings
         self.queues = {}
+        self.parameter = parameter
         self.initialize()
 
     def initialize(self):
         """Initializes each color queue with a specified hue_avg value repeated."""
         for color_name in self.color_settings.colors:
-            initial_hue_avg = self.color_settings.calib_values[color_name]["hue_avg"]
+            if self.parameter == "hue":
+                initial_hue_avg = self.color_settings.calib_values[color_name]["hue_avg"]
+            elif self.parameter == "dev":
+                initial_hue_avg = self.color_settings.calib_values[color_name]["dev_avg"]
+            elif self.parameter == "sat":
+                initial_hue_avg = self.color_settings.calib_values[color_name]["sat_avg"]
+            else:
+                raise ValueError("Invalid param argument for ColorHueQueue")
+            
             self.queues[color_name] = deque(
                 [initial_hue_avg] * self.max_length,
                 maxlen=self.max_length)
@@ -389,68 +442,134 @@ class ColorHueQueue:
                     # print(f"HUE dif for {color_name} and with {lower_threshold} lower_threshold: {hue_dif}")
                     if (np.abs(hue_dif) > lower_threshold and
                         np.abs(hue_dif) < color_deviation):
-                        self.add(color_name, rectg_hue)
                         # self.color_settings.calib_values[color_name]["hue_avg"] = int(self.average(color_name))
                         old_hue = self.color_settings.calib_values[color_name]["hue_avg"]
-                        new_hue_value = int(self.weighted_average(color_name))
+                        # new_hue_value = int(self.weighted_average(color_name))
+                        new_hue_value = rectg_hue
                         # if old_hue != new_hue_value:
                             # print("***********")
                             # print(f"New QUEUE average HUE for {color_name}: {new_hue_value}")
                             # print("***********")
         return new_hue_value, new_sat_value
 
-def update_image_colors(rectgs, image, color_settings, color_adapt_queue):
+def update_image_colors(rectgs, image, color_settings, color_adapt_queue, dev_adapt_queue, sat_adapt_queue):
     for color_name in color_settings.colors:
         
         env_hue, env_dev, env_sat = color_settings.calculate_color_thresholds(image, color_name)
-                    
-        color_settings.measured_values[color_name]["hue_values"].append(env_hue)
-        color_settings.measured_values[color_name]["hue_deviations"].append(env_dev)
-        color_settings.measured_values[color_name]["saturation_thresholds"].append(env_sat)
+        
+        if (len(color_settings.measured_values[color_name]["hue_values"]) > 100 and
+            len(color_settings.measured_values[color_name]["hue_deviations"]) > 100 and
+            len(color_settings.measured_values[color_name]["saturation_thresholds"]) > 100):
+            
+            del color_settings.measured_values[color_name]["hue_values"][:50]
+            del color_settings.measured_values[color_name]["hue_deviations"][:50]
+            del color_settings.measured_values[color_name]["saturation_thresholds"][:50]
+            
+        # print(f'LEN OF HUE ARRAY for {color_name} is: {len(color_settings.measured_values[color_name]["hue_values"])}')
+            
+        if (not np.isnan(env_hue) and
+            not np.isnan(env_dev) and
+            not np.isnan(env_sat)):
+                        
+            color_settings.measured_values[color_name]["hue_values"].append(env_hue)
+            color_settings.measured_values[color_name]["hue_deviations"].append(env_dev)
+            color_settings.measured_values[color_name]["saturation_thresholds"].append(env_sat)
+        else:
+            print("env_hue, env_dev or env_sat is NaN")
+        
+        
+        if (len(color_settings.measured_values[color_name]["hue_values"]) == 0 or
+            len(color_settings.measured_values[color_name]["hue_deviations"]) == 0 or
+            len(color_settings.measured_values[color_name]["saturation_thresholds"]) == 0):
+            continue
         
         env_avg_hue = np.mean(color_settings.measured_values[color_name]["hue_values"])
         env_avg_dev = np.mean(color_settings.measured_values[color_name]["hue_deviations"])
         env_avg_sat = np.mean(color_settings.measured_values[color_name]["saturation_thresholds"])
-        rectg_hue, rectg_sat = color_adapt_queue.adjust_detected_colors(rectgs, image, color_name)
         
-        if rectg_hue is not None:
-            old_hue = color_settings.calib_values[color_name]["hue_avg"]
+        # if not color_settings.calib_values[color_name]["hue_reassigned"]:
+        #     for _ in range(color_adapt_queue.max_length):
+        #         color_adapt_queue.add(color_name, int(env_avg_hue))
+        #     color_settings.calib_values[color_name]["hue_reassigned"] = True
+        #     # print(f"New HUE for {color_name} was REASSIGNED")
+        #     print(color_adapt_queue.queues[color_name])
+        
+        # if not color_settings.calib_values[color_name]["sat_reassigned"]:
+        #     old_sat = color_settings.calib_values[color_name]["sat_avg"]
+        #     new_sat_value = int(env_avg_sat)
+        #     if old_sat != new_sat_value:
+        #         color_settings.calib_values[color_name]["sat_avg"] = new_sat_value
+        #         # if color_name == "green":
+        #         print("///////////")
+        #         print(f"New FIRST SATURATION average for {color_name}: {new_sat_value}")
+        #         print("///////////")
+        #     color_settings.calib_values[color_name]["sat_reassigned"] = True
+        #     # print(f"Now SATURATION for {color_name} was REASSIGNED")
             
-            new_hue_value = int(np.mean([env_avg_hue, rectg_hue]))
-            
-            if old_hue != new_hue_value:
-                color_settings.calib_values[color_name]["hue_avg"] = new_hue_value
-                # print("|||||||||||")
-                # print(f"New GENERAL average HUE for {color_name}: {new_hue_value}")
-                # print("|||||||||||")
-        elif rectg_hue is None:
-            old_hue = color_settings.calib_values[color_name]["hue_avg"]
-            new_hue_value = int(env_avg_hue)
-            
-            if old_hue != new_hue_value:
-                color_settings.calib_values[color_name]["hue_avg"] = new_hue_value
-                # print("|||||||||||")
-                # print("rectg_hue is None")
-                # print(f"New GENERAL average HUE for {color_name}: {new_hue_value}")
-                # print("|||||||||||")
         old_dev = color_settings.calib_values[color_name]["dev_avg"]
-        new_dev_value = int(env_avg_dev)
+        dev_adapt_queue.add(color_name, int(env_avg_dev))
+        new_dev_value = int(dev_adapt_queue.weighted_average(color_name))
         if old_dev != new_dev_value: 
             color_settings.calib_values[color_name]["dev_avg"] = new_dev_value
-            # print("______________")
-            # print(f"New DEVIATION average for {color_name}: {new_dev_value}")
-            # print("______________")
+            # if color_name == "green":
+            #     print("______________")
+            #     print(f"New DEVIATION average for {color_name}: {new_dev_value}")
+            #     print("______________")
+    
+              
+        rectg_hue, rectg_sat = color_adapt_queue.adjust_detected_colors(rectgs, image, color_name)
+            
+        if rectg_hue is not None:
+            old_hue = color_settings.calib_values[color_name]["hue_avg"]
+            color_adapt_queue.add(color_name, rectg_hue)
+            new_hue_value = int(color_adapt_queue.weighted_average(color_name))
+            # new_hue_value = int(np.mean([env_avg_hue, rectg_hue]))
+            if old_hue != new_hue_value:
+                color_settings.calib_values[color_name]["hue_avg"] = new_hue_value
+                # if color_name == "green":
+                    # print("|||||||||||")
+                # print(f"New RECTANGLED average HUE for {color_name}: {new_hue_value}")
+                    # print("|||||||||||")
+        elif rectg_hue is None:
+            old_hue = color_settings.calib_values[color_name]["hue_avg"]
+            # new_hue_value = int(env_avg_hue)
+            color_adapt_queue.add(color_name, int(env_avg_hue))
+            new_hue_value = int(color_adapt_queue.weighted_average(color_name))
+            if old_hue != new_hue_value:
+                color_settings.calib_values[color_name]["hue_avg"] = new_hue_value
+                # if color_name == "green":
+                    # print("+++++++++++")
+                # print(f"New CALIB average HUE for {color_name}: {new_hue_value}")
+                    # print("+++++++++++")
         if rectg_sat is not None:
             old_sat = color_settings.calib_values[color_name]["sat_avg"]
-            new_sat_value = int(rectg_sat)
+            sat_adapt_queue.add(color_name, int(rectg_sat))
+            sat_adapt_queue.add(color_name, int(rectg_sat))
+            # new_sat_value = int(rectg_sat)
+            new_sat_value = int(sat_adapt_queue.weighted_average(color_name))
             if old_sat != new_sat_value:
                 color_settings.calib_values[color_name]["sat_avg"] = new_sat_value
                 # print("///////////")
                 # print(f"New SATURATION average for {color_name}: {new_sat_value}")
                 # print("///////////")
+        elif rectg_sat is None:
+            old_sat = color_settings.calib_values[color_name]["sat_avg"]
+            sat_adapt_queue.add(color_name, int(env_avg_sat))
+            new_sat_value = int(sat_adapt_queue.weighted_average(color_name))
+            if old_sat != new_sat_value:
+                color_settings.calib_values[color_name]["sat_avg"] = new_sat_value
+                # print("///////////")
+                # print(f"New SATURATION average for {color_name}: {new_sat_value}")
+                # print("///////////")
+        # if color_name == "green":
+        # print(f"---{color_name}---")
+        # print(f"HUE QUEUE for {color_name}: {color_adapt_queue.queues[color_name]}")
+        # print(f"DEV QUEUE for {color_name}: {dev_adapt_queue.queues[color_name]}")
+        # print(f"SAT QUEUE for {color_name}: {sat_adapt_queue.queues[color_name]}")
+        # print(f"----------")
     return     
         
-def create_mask(image, color_settings, color_name, color_params):
+def create_mask(image, color_name, color_params):
     
     hue_value = color_params[color_name]["hue_avg"]
     hue_deviation = color_params[color_name]["dev_avg"]
@@ -490,12 +609,12 @@ def create_mask(image, color_settings, color_name, color_params):
     
         
     # Hue, Saturation, Value masked: 
-    # if color_name == "red":
-        # cv2.imshow('Masked sat', masked_sat)
-        # cv2.imshow('Masked hue', masked_hue)
-    # cv2.imshow('Mask', mask)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
+    # if color_name == "green":
+    #     cv2.imshow('Masked sat', masked_sat)
+    #     cv2.imshow('Masked hue', masked_hue)
+    #     cv2.imshow('Mask', mask)
+    #     cv2.waitKey(0)
+    #     cv2.destroyAllWindows()
     return mask
 
 # TODO: create a class for color_value assignment

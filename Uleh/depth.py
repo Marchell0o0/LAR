@@ -1,5 +1,6 @@
 import cv2 # type: ignore
 import numpy as np # type: ignore
+import math
 
 def generate_pc_image(pc_image):
     x_range = (-1, 1)
@@ -50,7 +51,12 @@ def find_point_depth(depth_image, x, y):
     
     return depth_value
     
-def find_point_pc_coords(pc_image, x, y):
+def find_point_pc_coords(pc_image,
+                         x,
+                         y,
+                         y_offset=-0.045,
+                         cylinder_rad = 0.025,
+                         camera_ang = 75):
     array_shape = pc_image.shape
     height = array_shape[0]
     width = array_shape[1]
@@ -61,9 +67,18 @@ def find_point_pc_coords(pc_image, x, y):
         # print(f"X and/or Y out of boundaries for pc: {x, y}")
         return None, None, None
     
-    y_value = pc_image[y, x, 0] 
+    y_value = pc_image[y, x, 0] + y_offset
     x_value = pc_image[y, x, 1] 
-    z_value = pc_image[y, x, 2] 
+    z_value_cath = pc_image[y, x, 2] * math.sin(math.radians(camera_ang)) + cylinder_rad
+    z_value_hyp = pc_image[y, x, 2] + cylinder_rad
+    # 0 - 40 cm range from robot corner to the edge of cylinder
+    if z_value_hyp < 0.60:
+        z_value = z_value_cath
+    # 40 - 40 cm range from robot corner to the edge of cylinder
+    elif z_value_hyp >= 0.60 and z_value_hyp <= 0.80:
+        z_value = (z_value_hyp + z_value_cath) / 2
+    else:
+        z_value = z_value_hyp
     # print(f"PC depth at pixel ({x}, {y}): {z_value} meters, real (x, y): ({x_value}, {y_value})")
     return x_value, y_value, z_value
 
