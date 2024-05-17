@@ -244,7 +244,7 @@ class RectangleProcessor:
                         rectangle_angle = Uleh.utils.calculate_angle(rectangle_y, rectangle_distance)
                         
                         if (rectangle_angle is not None and
-                            Uleh.utils.is_within_range_distance(aspect_ratio, rectangle_distance)):
+                            Uleh.utils.is_within_range_distance(aspect_ratio, rectangle_distance, area)):
                     
                             rectangle = Rectangle(
                                                 area,
