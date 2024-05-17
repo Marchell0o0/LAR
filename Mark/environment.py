@@ -64,8 +64,11 @@ class Environment:
         self.robot: Robot = robot
         self.checkpoints: list[Checkpoint] = checkpoints
         self.obstacles: list[Obstacle] = obstacles
+        self.obstacles_measurement_count: dict[Obstacle, int] = {}
         self.primary_checkpoints_idxs: list[int] = []
         self.real_robot: Robot = real_robot
+
+        self.measurements_to_be_sure = 3
 
         self.found_finish = False
 
@@ -107,7 +110,7 @@ class Environment:
         if side == 0:
             side = 0.0001
 
-        checkpoint_angle = np.arctan2(np.sign(side)*normal[1], np.sign(side)*normal[0])
+        checkpoint_angle = np.arctan2(np.sign(side) * normal[1], np.sign(side) * normal[0])
         checkpoint_angle += np.pi
         checkpoint_angle = np.arctan2(np.sin(checkpoint_angle), np.cos(checkpoint_angle))
 
@@ -152,9 +155,15 @@ class Environment:
         return False
 
     def update_checkpoints(self, current_checkpoint_idx):
-        obstacles_red = [obstacle for obstacle in self.obstacles if obstacle.color == 0]
-        obstacles_blue = [obstacle for obstacle in self.obstacles if obstacle.color == 1]
-        obstacles_green = [obstacle for obstacle in self.obstacles if obstacle.color == 2]
+        obstacles_red = [obstacle for obstacle in self.obstacles if
+                         (obstacle.color == 0 and
+                          self.obstacles_measurement_count[obstacle] >= self.measurements_to_be_sure)]
+        obstacles_blue = [obstacle for obstacle in self.obstacles if
+                          (obstacle.color == 1 and
+                           self.obstacles_measurement_count[obstacle] >= self.measurements_to_be_sure)]
+        obstacles_green = [obstacle for obstacle in self.obstacles if
+                           (obstacle.color == 2 and
+                            self.obstacles_measurement_count[obstacle] >= self.measurements_to_be_sure)]
         added_new = False
         for obstacle_red in obstacles_red:
             for obstacle_blue in obstacles_blue:

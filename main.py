@@ -118,7 +118,7 @@ def main():
                       [Obstacle(1, 0.05, 0),
                        Obstacle(1, -0.05, 1),
                        Obstacle(0.5, 0.6, 2),
-                       Obstacle(1.45, 1.3, 0),
+                       Obstacle(1.45, 1.28, 0),
                        Obstacle(1.50, 1.25, 1),
                        Obstacle(0, 1.60, 2),
                        Obstacle(0.05, 1.65, 2)

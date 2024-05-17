@@ -73,6 +73,8 @@ class AStar:
 
     def in_collision_a_star(self, node):
         for obstacle in self.env.obstacles:
+            if self.env.obstacles_measurement_count[obstacle] < self.env.measurements_to_be_sure:
+                continue
             allowed_distance = (obstacle.radius + self.env.robot.radius + self.env.robot.obstacle_clearance) * 100
             if distance(node, Node(obstacle.x * 100, obstacle.y * 100)) < allowed_distance:
                 return True

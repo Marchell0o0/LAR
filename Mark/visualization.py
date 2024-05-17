@@ -62,7 +62,10 @@ class RobotVisualization:
             self.draw_obstacle(hidden_obstacle, 0, True)
 
         for idx, obstacle in enumerate(self.env.obstacles):
-            self.draw_obstacle(obstacle, idx, False)
+            if self.env.obstacles_measurement_count[obstacle] >= self.env.measurements_to_be_sure:
+                self.draw_obstacle(obstacle, idx, False)
+            else:
+                self.draw_obstacle(obstacle, idx, True)
 
         self.draw_path(self.path_execution.path)
 

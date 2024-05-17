@@ -6,14 +6,17 @@ class KalmanFilter:
     def __init__(self, env):
         self.env = env
         self.sigma = 0.01 * np.eye(3, dtype=float)
+        self.mu = np.array([[self.env.robot.x], [self.env.robot.y], [self.env.robot.a]], dtype=np.float64)
+
         self.R = np.diag([0.0001, 0.0001, 0.01])  # sigma x, y, a
         self.Q_obstacles = np.diag([0.02, np.deg2rad(0.1), 0.0001])  # sigma r, phi, color
 
         # acceptable mahalanobis distance
         self.alpha = 4
-        self.alpha_for_green = 0.3
+        self.alpha_for_green = 0.8
 
-        self.mu = np.array([[self.env.robot.x], [self.env.robot.y], [self.env.robot.a]], dtype=np.float64)
+
+
 
     def Fx(self):
         total_state_length = 3 + 3 * len(self.env.obstacles)  # 3 for robot state, 3 per obstacle
@@ -47,40 +50,6 @@ class KalmanFilter:
         self.sigma = self.sigma + Fx.T @ self.R @ Fx
 
         return
-
-    """
-    def pos_update(self, u, dt):
-        v, w = u[0], u[1]
-        theta = self.mu[2]
-        if abs(w) > 1e-5:
-            dx = -(v / w) * np.sin(theta) + (v / w) * np.sin(theta + w * dt)
-            dy = (v / w) * np.cos(theta) - (v / w) * np.cos(theta + w * dt)
-            dtheta = w * dt
-        else:
-            dx = v * dt * np.cos(theta)
-            dy = v * dt * np.sin(theta)
-            dtheta = 0
-            
-        self.mu[0] += dx          
-        self.mu[1] += dy          
-        self.mu[2] += dtheta          
-        self.mu[2] = np.arctan2(np.sin(self.mu[2]), np.cos(self.mu[2]))                              
-        # Jacobian matrix G for state transition
-        G = np.zeros((3, 3))
-        if abs(w) > 1e-5:
-            G[0, 2] = -(v / w) * np.cos(theta) + (v / w) * np.cos(theta + w * dt)
-            G[1, 2] = -(v / w) * np.sin(theta) + (v / w) * np.sin(theta + w * dt)
-        else:
-            G[0, 2] = -v * dt * np.sin(theta)
-            G[1, 2] = v * dt * np.cos(theta)
-            
-        Fx = self.Fx()
-        G = np.eye(self.sigma.shape[0]) + Fx.T @ G @ Fx
-        self.sigma = G @ self.sigma @ G.T
-        self.sigma = self.sigma + Fx.T @ self.R @ Fx
-        
-        return
-    """
 
     def compute_mahalanobis_distance(self, measurement, obstacle_idx):
         dist, phi, color = measurement
@@ -127,10 +96,12 @@ class KalmanFilter:
                     if mahalanobis_distance < self.alpha_for_green and mahalanobis_distance < min_distance:
                         min_distance = mahalanobis_distance
                         closest_idx = idx * 3 + 3
+                        current_obstacle = obstacle
                 else:
                     if mahalanobis_distance < self.alpha and mahalanobis_distance < min_distance:
                         min_distance = mahalanobis_distance
                         closest_idx = idx * 3 + 3
+                        current_obstacle = obstacle
 
             if closest_idx == -1:
                 print("Adding new obstacle")
@@ -151,10 +122,15 @@ class KalmanFilter:
 
                 # Initialize the new obstacle
                 self.env.obstacles.append(measured_obstacle)
+                self.env.obstacles_measurement_count[measured_obstacle] = 1
 
                 self.mu[closest_idx] = measured_x
                 self.mu[closest_idx + 1] = measured_y
                 self.mu[closest_idx + 2] = color
+            else:
+                self.env.obstacles_measurement_count[current_obstacle] += 1
+
+
 
             # Update the state and covariance matrices
             delta = np.array([[self.mu[closest_idx] - self.env.robot.x],
@@ -164,6 +140,7 @@ class KalmanFilter:
             sqrt_q = np.sqrt(q)
             angle = np.arctan2(delta[1, 0], delta[0, 0]) - self.env.robot.a
             # angle = np.arctan2(np.sin(angle), np.cos(angle))
+
             current_color = self.mu[closest_idx + 2]
             z_hat = np.vstack((sqrt_q, angle, current_color)).reshape(3, 1)
 
@@ -172,7 +149,7 @@ class KalmanFilter:
 
             z_delta = z_actual - z_hat
             print("Difference of measurement from current data for:", measured_obstacle)
-            print("Is: (x, y, color)", z_delta)
+            print("Is: (x, y, color)", z_delta.T)
             z_delta[1] = np.arctan2(np.sin(z_delta[1]), np.cos(z_delta[1]))
 
             H = self.calculate_jacobian(delta, q, closest_idx)
@@ -208,9 +185,3 @@ class KalmanFilter:
             obstacle.x = self.mu[mu_idx]
             obstacle.y = self.mu[mu_idx + 1]
             obstacle.color = self.mu[mu_idx + 2]
-
-    # def process_measurement(self, u, z_obstacles, z_odometry, dt):
-    #     self.pos_update(u, dt)
-    #     self.obstacles_measurement_update(z_obstacles)
-    #     self.odometry_measurement_update(z_odometry)
-    #     self.update_environment()

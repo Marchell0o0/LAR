@@ -53,7 +53,7 @@ class PathExecution:
                 self.current_lookahead_distance = dist
 
         # Define coefficients for the interpolation
-        interpolation_power = 1 / 10
+        interpolation_power = 1 / 5
         a = ((self.min_lookahead_distance - self.max_lookahead_distance)
              / (np.pi / 2) ** interpolation_power)
         d = self.max_lookahead_distance
