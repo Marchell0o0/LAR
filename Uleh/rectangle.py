@@ -201,6 +201,7 @@ class RectangleProcessor:
                     y_coords = []
                     x_coords = []
                     distances = []
+                    true_distance = None
                     
                     points = Uleh.utils.calculate_rectangle_points(self.image, cX, cY, height, width, angle_rot)
                     for point in points[:3]:
@@ -222,9 +223,9 @@ class RectangleProcessor:
                             distances.append(true_distance)
                             x_coords.append(rectangle_x)
                             
-                        print(f"X of {point} element is: {rectangle_x}")
-                        print(f"Z HYP of {point} element is: {rectangle_distance + cylinder_rad}")
-                        print(f"Z TRUE of {point} element is: {true_distance}")
+                        # print(f"X of {point} element is: {rectangle_x}")
+                        # print(f"Z HYP of {point} element is: {rectangle_distance + cylinder_rad}")
+                        # print(f"Z TRUE of {point} element is: {true_distance}")
                     
                     Uleh.utils.remove_values_excluding_outliers(distances, outlier_distance) 
                     if len(distances) != 0: 
@@ -233,7 +234,7 @@ class RectangleProcessor:
                     else:
                         rectangle_distance = None
                         rectangle_y = None
-                        print("FINAL Y or DISTANCE is EMPTY")
+                        # print("FINAL Y or DISTANCE is EMPTY")
                         pc_error_counter += 1
                     
                     if (not np.isnan(rectangle_y) and
@@ -264,7 +265,7 @@ class RectangleProcessor:
                             
                             self.rectangles.append(rectangle)
                             Uleh.utils.draw_rectangle(result_mask, original_image, rectangle)
-                            print(rectangle)
+                            # print(rectangle)
                     else:
                         print("FINAL Y or DISTANCE is NaN")
                         pc_error_counter += 1

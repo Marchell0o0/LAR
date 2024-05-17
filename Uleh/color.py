@@ -156,7 +156,7 @@ class ColorSettings:
             self.calib_values[color_name]["hue_avg"] = int(avg_hue)
             self.calib_values[color_name]["dev_avg"] = int(avg_deviation)
             self.calib_values[color_name]["sat_avg"] = int(avg_saturation)
-            print(f"Average for {color_name}: Hue={int(avg_hue)}, Deviation={int(avg_deviation)}, Saturation Threshold={int(avg_saturation)}")
+            # print(f"Average for {color_name}: Hue={int(avg_hue)}, Deviation={int(avg_deviation)}, Saturation Threshold={int(avg_saturation)}")
             
         return 
     
@@ -562,11 +562,11 @@ def update_image_colors(rectgs, image, color_settings, color_adapt_queue, dev_ad
                 # print(f"New SATURATION average for {color_name}: {new_sat_value}")
                 # print("///////////")
         # if color_name == "green":
-        print(f"---{color_name}---")
-        print(f"HUE QUEUE for {color_name}: {color_adapt_queue.queues[color_name]}")
-        print(f"DEV QUEUE for {color_name}: {dev_adapt_queue.queues[color_name]}")
-        print(f"SAT QUEUE for {color_name}: {sat_adapt_queue.queues[color_name]}")
-        print(f"----------")
+        # print(f"---{color_name}---")
+        # print(f"HUE QUEUE for {color_name}: {color_adapt_queue.queues[color_name]}")
+        # print(f"DEV QUEUE for {color_name}: {dev_adapt_queue.queues[color_name]}")
+        # print(f"SAT QUEUE for {color_name}: {sat_adapt_queue.queues[color_name]}")
+        # print(f"----------")
     return     
         
 def create_mask(image, color_name, color_params):

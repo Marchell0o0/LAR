@@ -109,8 +109,8 @@ def calculate_hue_params(image, color_range, deviation_range):
     # Calculate standard deviation around the peak
     color_deviation = np.std(hsv[:,:,0][(hsv[:,:,0] > average_hue - deviation_range) & (hsv[:,:,0] < average_hue + deviation_range)])
     
-    print("Avarage color: ", average_hue)
-    print("Color deviation: ", color_deviation)
+    # print("Avarage color: ", average_hue)
+    # print("Color deviation: ", color_deviation)
 
     return average_hue, color_deviation, hist_hue_smoothed
 
@@ -158,7 +158,7 @@ def calculate_saturation_threshold(image, saturation_range):
     sat_threshold = np.argmin(hist_sat[saturation_range[0]:saturation_range[1]]) + saturation_range[0]
     # sat_threshold = calculate_sat_average(hist_sat_smoothed, saturation_range)
     
-    print("Saturation avarage: ", sat_threshold)
+    # print("Saturation avarage: ", sat_threshold)
     
     # Debugging:
     # plot_histogram(hist_sat_smoothed, "saturation")
