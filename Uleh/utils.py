@@ -42,7 +42,7 @@ def is_within_range_distance(aspect_ratio, distance):
         is_within_range(aspect_ratio, [3.1, 6.8])):
         is_in_range = True
     elif (is_within_range(distance, [1.3, 2]) and
-    is_within_range(aspect_ratio, [3.5, 7.8])):
+    is_within_range(aspect_ratio, [3.3, 7.8])):
         is_in_range = True
     elif (is_within_range(distance, [2, 3]) and
         is_within_range(aspect_ratio, [3.7, 8])):
@@ -250,11 +250,17 @@ def calculate_rectangle_points(image, cX, cY, height, width, angle_rot, epsilonX
     return [center, top, bottom, left, right, lt, rt, lb, rb]
 
 def remove_values_excluding_outliers(values, threshold):
-    median_value = np.median(values)  # Calculate the median
-    for value in values:
-        if abs(value - median_value) > threshold:
-            values.remove(value)
-            print(f"Excluded {value} as it's too far from the median.")
+    if len(values) == 3:
+        median_value = np.median(values)
+        for value in values:
+            if abs(value - median_value) > threshold:
+                values.remove(value)
+                print(f"Excluded {value} as it's too far from the median.")
+    elif len(values) == 2:
+        if max(values) - min(values) > threshold:
+            values = []
+    else:
+        value = []
     return
   
 def draw_points_on_image(image, points):

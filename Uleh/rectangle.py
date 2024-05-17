@@ -135,7 +135,9 @@ class RectangleProcessor:
                         epsilon = 0.02,
                         vertices_range = [4, 6],
                         min_area = 800,
-                        aspect_ratio_range = [2, 8]):
+                        aspect_ratio_range = [2, 8],
+                        outlier_distance=0.1,
+                        cylinder_rad = 0.025):
         result_mask = np.zeros_like(image_mask)
         original_image = image_labels.copy()
 
@@ -197,37 +199,47 @@ class RectangleProcessor:
                         image_mask[y:y+height, x:x+width].flatten()).argmax()
                     
                     y_coords = []
+                    x_coords = []
                     distances = []
-                    # true_distances = []
                     
                     points = Uleh.utils.calculate_rectangle_points(self.image, cX, cY, height, width, angle_rot)
                     for point in points[:3]:
-                        rectangle_y, rectangle_distance = Uleh.depth.find_point_pc_coords(self.pc_image,
+                        rectangle_x, rectangle_y, rectangle_distance = Uleh.depth.find_point_pc_coords(self.pc_image,
                                                                     point[0],
                                                                     point[1]
-                                                                    )[1:3]
-                        # TODO: implement adequate distance checking
-                        if not np.isnan(rectangle_y) and rectangle_y is not None:
-                            y_coords.append(rectangle_y)
-                        if not np.isnan(rectangle_distance) and rectangle_distance is not None:
-                            distances.append(rectangle_distance)
-                        # if not np.isnan(value_true) and value_true is not None:
-                        #     true_distances.append(value_true)
-                    
-                    # if len(true_distances) != 0:   
-                    #     value_true = np.mean(true_distances) 
+                                                                    )
+                        # TODO: rewrite error checking
+                        if (not np.isnan(rectangle_y) and
+                            rectangle_y is not None and
+                            not np.isnan(rectangle_distance) and
+                            rectangle_distance is not None and
+                            not np.isnan(rectangle_x) and
+                            rectangle_x is not None):
                             
-                    # TODO: rewrite error checking
-                    if len(y_coords) != 0 and len(distances) != 0:
-                        Uleh.utils.remove_values_excluding_outliers(distances, 0.1)  
+                            true_distance = np.sqrt(rectangle_distance**2 - np.abs(rectangle_x)**2) + cylinder_rad
+                            
+                            y_coords.append(rectangle_y)
+                            distances.append(true_distance)
+                            x_coords.append(rectangle_x)
+                            
+                        print(f"X of {point} element is: {rectangle_x}")
+                        print(f"Z HYP of {point} element is: {rectangle_distance + cylinder_rad}")
+                        print(f"Z TRUE of {point} element is: {true_distance}")
+                    
+                    Uleh.utils.remove_values_excluding_outliers(distances, outlier_distance) 
+                    if len(distances) != 0: 
                         rectangle_distance = np.mean(distances)   
                         rectangle_y = np.mean(y_coords)
                     else:
+                        rectangle_distance = None
+                        rectangle_y = None
                         print("FINAL Y or DISTANCE is EMPTY")
                         pc_error_counter += 1
                     
                     if (not np.isnan(rectangle_y) and
-                        not np.isnan(rectangle_distance)):
+                        rectangle_y is not None and
+                        not np.isnan(rectangle_distance) and
+                        rectangle_distance is not None):
                         
                         rectangle_angle = Uleh.utils.calculate_angle(rectangle_y, rectangle_distance)
                         
@@ -315,6 +327,7 @@ class RectangleProcessor:
                 # cv2.imshow('Masked labels', masked_labels)
                 # cv2.imshow('Labels on the image', image_labels)
                 # cv2.imshow('Masked rectangles', masked_rectangles)
+                cv2.imshow('Masked labels', masked_labels)
                 cv2.imshow('Rectangles on the image', image_rectangles)
                 # depth.generate_pc_image(pc_image)
                 cv2.waitKey(0)

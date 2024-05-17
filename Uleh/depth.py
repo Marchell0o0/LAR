@@ -54,9 +54,7 @@ def find_point_depth(depth_image, x, y):
 def find_point_pc_coords(pc_image,
                          x,
                          y,
-                         y_offset=-0.045,
-                         cylinder_rad = 0.025,
-                         camera_ang = 75):
+                         y_offset=-0.045):
     array_shape = pc_image.shape
     height = array_shape[0]
     width = array_shape[1]
@@ -67,18 +65,24 @@ def find_point_pc_coords(pc_image,
         # print(f"X and/or Y out of boundaries for pc: {x, y}")
         return None, None, None
     
+    # TODO: remove old code
+    # camera_ang = 75
+    
     y_value = pc_image[y, x, 0] + y_offset
     x_value = pc_image[y, x, 1] 
-    z_value_cath = pc_image[y, x, 2] * math.sin(math.radians(camera_ang)) + cylinder_rad
-    z_value_hyp = pc_image[y, x, 2] + cylinder_rad
+    # z_value_cath = pc_image[y, x, 2] * math.sin(math.radians(camera_ang)) + cylinder_rad
+    # z_value_hyp = pc_image[y, x, 2] + cylinder_rad
+    z_value = pc_image[y, x, 2]
+    
+    
     # 0 - 40 cm range from robot corner to the edge of cylinder
-    if z_value_hyp < 0.60:
-        z_value = z_value_cath
-    # 40 - 40 cm range from robot corner to the edge of cylinder
-    elif z_value_hyp >= 0.60 and z_value_hyp <= 0.80:
-        z_value = (z_value_hyp + z_value_cath) / 2
-    else:
-        z_value = z_value_hyp
+    # if z_value_hyp < 0.60:
+    #     z_value = z_value_cath
+    # # 40 - 40 cm range from robot corner to the edge of cylinder
+    # elif z_value_hyp >= 0.60 and z_value_hyp <= 0.80:
+    #     z_value = (z_value_hyp + z_value_cath) / 2
+    # else:
+    #     z_value = z_value_hyp
     # print(f"PC depth at pixel ({x}, {y}): {z_value} meters, real (x, y): ({x_value}, {y_value})")
     return x_value, y_value, z_value
 
