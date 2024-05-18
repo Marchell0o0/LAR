@@ -113,7 +113,7 @@ class PathExecution:
             # Calculate the angular speed based on how close the robot is to the desired angle
             if abs(angle_difference) > self.env.robot.angle_allowance:
                 # Normalize the difference within the range of 0 to 1
-                normalized_diff = abs(angle_difference) / (np.pi / 4)
+                normalized_diff = abs(angle_difference) / (np.pi / 2)
 
                 # Linear interpolation between max and min angular speed
                 angular_speed = ((self.env.robot.max_angular_speed*2 - self.env.robot.min_angular_speed)
@@ -184,23 +184,23 @@ class PathExecution:
                     self.get_to_desired_speed(0)
                     return (self.current_speed, 0)
             else:
-                if not self.env.found_finish and self.counter > 20:
+                if not self.env.found_finish and self.counter > 0:
                     print("Adding a new checkpoint for exploration")
-                    exploration_distance = 0.30
+                    exploration_distance = 0.3
                     # self.get_to_desired_speed(0)
                     new_x = self.env.robot.x + np.cos(self.env.robot.a) * exploration_distance
                     new_y = self.env.robot.y + np.sin(self.env.robot.a) * exploration_distance
                     new_a = float(self.env.robot.a)
                     new_checkpoint = Checkpoint(new_x, new_y, new_a)
-                    turn_right = Checkpoint(new_x, new_y, new_a - np.pi / 4)
-                    turn_left = Checkpoint(new_x, new_y, new_a + np.pi / 4)
+                    turn_right = Checkpoint(new_x, new_y, new_a - self.env.look_around_angle)
+                    turn_left = Checkpoint(new_x, new_y, new_a + self.env.look_around_angle)
                     self.env.checkpoints.append(new_checkpoint)
                     self.env.checkpoints.append(turn_right)
                     self.env.checkpoints.append(turn_left)
                     self.env.checkpoints.append(new_checkpoint)
 
                     self.counter = 0
-                    return (self.current_speed, 0)
+                    # return (self.current_speed, 0)
                 else:
                     self.get_to_desired_speed(0)
                     self.counter += 1

@@ -24,14 +24,14 @@ class Robot:
         # self.min_angular_speed = np.pi / 8
         # self.min_linear_speed = 0.00
 
-        self.linear_acceleration = 1  # m/s^2
+        self.linear_acceleration = 0.4  # m/s^2
         self.max_linear_speed = 0.4  # m/s
-        self.max_angular_speed = np.pi / 8  # rad/s
-        self.min_angular_speed = np.pi / 16
-        self.min_linear_speed = 0.00
+        self.max_angular_speed = np.pi / 4  # rad/s
+        self.min_angular_speed = np.pi / 10
+        self.min_linear_speed = 0.03
 
-        self.distance_allowance = 0.05
-        self.path_update_distance = 0.04
+        self.distance_allowance = 0.03
+        self.path_update_distance = 0.03
         # self.angular_speed_distance_allowance = 0.06
         self.angle_allowance = np.deg2rad(1)
         self.obstacle_clearance = 0.045  # m
@@ -74,19 +74,23 @@ class Environment:
         self.primary_checkpoints_idxs: list[int] = []
         self.real_robot: Robot = real_robot
 
-        self.measurements_to_be_sure = 5
+        self.measurements_to_be_sure = 3
 
         self.found_finish = False
 
+        self.look_around_angle = np.pi / 8
+
         self.hidden_obstacles: set[Obstacle] = hidden_obstacles
 
-    @staticmethod
-    def generate_checkpoints_for_exploration(main_checkpoint: Checkpoint, side: int):
+    def generate_checkpoints_for_exploration(self, main_checkpoint: Checkpoint, side: int):
         # move_back_distance = 0.1
         # move_back = Checkpoint(main_checkpoint.x - move_back_distance * np.cos(main_checkpoint.a),
         #                        main_checkpoint.y - move_back_distance * np.sin(main_checkpoint.a),
         #                        main_checkpoint.a - np.pi)
         # move_back.a = np.arctan2(np.sin(move_back.a), np.cos(move_back.a))
+
+        # turn_back = Checkpoint(main_checkpoint.x, main_checkpoint.y, main_checkpoint.a - np.pi)
+        # turn_back.a = np.arctan2(np.sin(turn_back.a), np.cos(turn_back.a))
 
         turn_to_the_side = Checkpoint(main_checkpoint.x, main_checkpoint.y, main_checkpoint.a - side * np.pi / 2)
         turn_to_the_side.a = np.arctan2(np.sin(turn_to_the_side.a), np.cos(turn_to_the_side.a))
@@ -95,14 +99,21 @@ class Environment:
         move_forward = Checkpoint(turn_to_the_side.x + move_forward * np.cos(turn_to_the_side.a),
                                   turn_to_the_side.y + move_forward * np.sin(turn_to_the_side.a),
                                   turn_to_the_side.a)
-        look_around_angle = np.pi / 8
-        look_around_right = Checkpoint(move_forward.x, move_forward.y, move_forward.a - look_around_angle)
-        look_around_right.a = np.arctan2(np.sin(look_around_right.a), np.cos(look_around_right.a))
+        look_around_right_one = Checkpoint(move_forward.x, move_forward.y, move_forward.a - self.look_around_angle)
+        look_around_right_one.a = np.arctan2(np.sin(look_around_right_one.a), np.cos(look_around_right_one.a))
 
-        look_around_left = Checkpoint(move_forward.x, move_forward.y, move_forward.a + look_around_angle)
-        look_around_left.a = np.arctan2(np.sin(look_around_left.a), np.cos(look_around_left.a))
+        # look_around_right_two = Checkpoint(move_forward.x, move_forward.y, move_forward.a - self.look_around_angle * 2)
+        # look_around_right_two.a = np.arctan2(np.sin(look_around_right_two.a), np.cos(look_around_right_two.a))
 
-        return [turn_to_the_side, move_forward, look_around_right, look_around_left, move_forward]
+
+        look_around_left_one = Checkpoint(move_forward.x, move_forward.y, move_forward.a + self.look_around_angle)
+        look_around_left_one.a = np.arctan2(np.sin(look_around_left_one.a), np.cos(look_around_left_one.a))
+
+        # look_around_left_two = Checkpoint(move_forward.x, move_forward.y, move_forward.a + self.look_around_angle * 2)
+        # look_around_left_two.a = np.arctan2(np.sin(look_around_left_two.a), np.cos(look_around_left_two.a))
+
+
+        return [turn_to_the_side, move_forward, look_around_right_one, look_around_left_one, move_forward]
 
     def add_checkpoint_for_obstacle_pair(self, obstacle_one, obstacle_two, current_checkpoint_idx):
         center = ((obstacle_one.x + obstacle_two.x) / 2, (obstacle_one.y + obstacle_two.y) / 2)
@@ -136,7 +147,7 @@ class Environment:
                 continue
             found = True
 
-            if idx > current_checkpoint_idx - 1:
+            if idx > current_checkpoint_idx - 4:
                 self.checkpoints[idx] = new_checkpoint
 
                 if finish_node:
@@ -173,7 +184,7 @@ class Environment:
         added_new = False
         for obstacle_red in obstacles_red:
             for obstacle_blue in obstacles_blue:
-                if abs(distance(obstacle_blue, obstacle_red) - 0.055) < 0.1:
+                if abs(distance(obstacle_blue, obstacle_red) - 0.055) < 0.2:
                     if self.add_checkpoint_for_obstacle_pair(obstacle_red,
                                                              obstacle_blue,
                                                              current_checkpoint_idx):
@@ -183,7 +194,7 @@ class Environment:
             for j in range(len(obstacles_green)):
                 if i == j:
                     continue
-                if abs(distance(obstacles_green[i], obstacles_green[j]) - 0.055) < 0.1:
+                if abs(distance(obstacles_green[i], obstacles_green[j]) - 0.055) < 0.2:
                     if not self.found_finish:
                         print("--------------- Found FINISH ---------------")
                         self.found_finish = True

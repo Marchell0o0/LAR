@@ -112,6 +112,10 @@ def main():
                         #   Checkpoint(0, 0, np.pi / 2),
                         #   Checkpoint(0, 0, np.pi),
                         #   Checkpoint(0, 0, -np.pi / 2),
+                        #   Checkpoint(0, 0, 0),
+                        #   Checkpoint(0, 0, np.pi / 2),
+                        #   Checkpoint(0, 0, np.pi),
+                        #   Checkpoint(0, 0, -np.pi / 2),
                         #   Checkpoint(0, 0, 0)
                       ],
                       [],
@@ -177,28 +181,37 @@ def main():
             # robot isn't moving quickly
             # print("Getting camera readings")
             obstacle_measurements = []
-            if next_move[0] < 0.05 and next_move[1] < 0.05:
-                print("Making a measurement")
+            measurements_to_make = 0
+            # This worked well
+            # print(next_move)
+            # if next_move[0] < 0.1 and abs(next_move[1]) < 0.0001:
+                # measurements_to_make = 1
+            if next_move[0] < 0.04 and abs(next_move[1]) < 0.01:
+                measurements_to_make = 2
+                print("Making three measurements")
+            elif next_move[0] < 0.1 and abs(next_move[1]) < 0.01:
+                measurements_to_make = 1
+                print("Making one measurement")
+            # elif next_move[0] < 0.03 and abs(next_move[1]) < 0.001:
+                # measurements_to_make = 3
+                # print("Making three measurements")
+            for _ in range(measurements_to_make):
+                # print("Making a measurement")
                 image = turtle.get_rgb_image()
                 pc_image = turtle.get_point_cloud()
-                # if counter % 10 == 0:
-                #     print("Saving files")
-                #     np.save(f"camera/{counter}-rgb.npy", image)
-                #     np.save(f"camera/{counter}-pc.npy", pc_image)
-                #     cv2.imwrite(f"camera/{counter}-rgb.png", image)
 
                 # print("Obstacle recognition")
                 rectg_processor = RectangleProcessor(image,
                                                         pc_image,
                                                         color_settings,
-                                                        color_adapt_queue,
-                                                        dev_adapt_queue,
-                                                        sat_adapt_queue)
+                                                        color_adapt_queue)
                 detected_rectgs, masked_rectgs, image_rectg, _ = rectg_processor.process_image()
-                obstacle_measurements = detected_rectgs
-                print(obstacle_measurements)
-                if image_rectg is not None:
-                    cv2.imshow('RGB Camera', image_rectg)
+                if detected_rectgs is None:
+                    continue
+                obstacle_measurements = obstacle_measurements + detected_rectgs
+                # print(obstacle_measurements)
+                # if image_rectg is not None:
+                    # cv2.imshow('RGB Camera', image_rectg)
 
 
             # print("Measured data:", obstacle_measurements)

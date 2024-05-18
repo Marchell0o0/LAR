@@ -54,7 +54,7 @@ def find_point_depth(depth_image, x, y):
 def find_point_pc_coords(pc_image,
                          x,
                          y,
-                         y_offset=-0.045):
+                         y_offset=-0.04):
     array_shape = pc_image.shape
     height = array_shape[0]
     width = array_shape[1]
