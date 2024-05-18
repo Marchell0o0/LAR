@@ -34,26 +34,26 @@ def is_within_range_distance(aspect_ratio, distance, area):
     is_in_range = False
     if (is_within_range(distance, [0.15, 0.5]) and
         is_within_range(aspect_ratio, [2, 4]) and
-        is_within_range(area, [15000, 70000])):
+        is_within_range(area, [18000, 70000])):
         is_in_range = True
     elif (is_within_range(distance, [0.3, 1]) and
         is_within_range(aspect_ratio, [3, 6.2]) and
-        is_within_range(area, [4000, 60000])):
+        is_within_range(area, [5000, 60000])):
         is_in_range = True
     elif (is_within_range(distance, [1, 1.3]) and
         is_within_range(aspect_ratio, [3.1, 6.8]) and
-        is_within_range(area, [2000, 10000])):
+        is_within_range(area, [2700, 10000])):
         is_in_range = True
     elif (is_within_range(distance, [1.3, 2]) and
-        is_within_range(aspect_ratio, [3.3, 7.8]) and
-        is_within_range(area, [800, 2500])):
+        is_within_range(aspect_ratio, [3.1, 7.8]) and
+        is_within_range(area, [800, 5000])):
         is_in_range = True
     elif (is_within_range(distance, [2, 3]) and
         is_within_range(aspect_ratio, [3.7, 8]) and
         is_within_range(area, [800, 2000])):
         is_in_range = True
     if is_in_range == False:
-        # print(f"Rectangle outside boundaries - aspect ratio: {aspect_ratio}, distance: {distance}")
+        print(f"Rectangle outside boundaries - aspect ratio: {aspect_ratio}, distance: {distance}, area: {area}")
     return is_in_range
         
         

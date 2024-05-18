@@ -11,7 +11,7 @@ from Mark.path_creation import PathCreation
 from Mark.kalman import KalmanFilter
 
 from Uleh.rectangle import RectangleProcessor
-from Uleh.color import ColorSettings, ColorHueQueue
+from Uleh.color import ColorSettings, ColorQueue
 
 # Running pygame without the display to resolve a dependency with OpenGL
 import pygame
@@ -147,9 +147,7 @@ def main():
         turtle, rate = initialize_turtle()
 
         color_settings = ColorSettings()
-        color_adapt_queue = ColorHueQueue(color_settings, parameter="hue")
-        dev_adapt_queue = ColorHueQueue(color_settings, parameter="dev")
-        sat_adapt_queue = ColorHueQueue(color_settings, parameter="sat")
+        color_adapt_queue = ColorQueue(color_settings)
 
         turtle.reset_odometry()
         previous_odometry = turtle.get_odometry()
@@ -189,11 +187,9 @@ def main():
 
             # print("Obstacle recognition")
             rectg_processor = RectangleProcessor(image,
-                                                    pc_image,
-                                                    color_settings,
-                                                    color_adapt_queue,
-                                                    dev_adapt_queue,
-                                                    sat_adapt_queue)
+                                                pc_image,
+                                                color_settings,
+                                                color_adapt_queue)
             detected_rectgs, masked_rectgs, image_rectg, _ = rectg_processor.process_image()
 
             obstacle_measurements = detected_rectgs
