@@ -179,14 +179,16 @@ class PathExecution:
             if self.current_checkpoint_idx < len(self.env.checkpoints):
                 goal = self.env.checkpoints[self.current_checkpoint_idx]
                 self.path = self.path_creation.create_path(self.env.robot, goal)
+
                 if not self.path:
                     print("Couldn't generate a path to the checkpoint")
                     self.get_to_desired_speed(0)
                     return (self.current_speed, 0)
+                
             else:
                 if not self.env.found_finish and self.counter > 0:
                     print("Adding a new checkpoint for exploration")
-                    exploration_distance = 0.3
+                    exploration_distance = 0.6
                     # self.get_to_desired_speed(0)
                     new_x = self.env.robot.x + np.cos(self.env.robot.a) * exploration_distance
                     new_y = self.env.robot.y + np.sin(self.env.robot.a) * exploration_distance
@@ -200,7 +202,6 @@ class PathExecution:
                     self.env.checkpoints.append(new_checkpoint)
 
                     self.counter = 0
-                    # return (self.current_speed, 0)
                 else:
                     self.get_to_desired_speed(0)
                     self.counter += 1
