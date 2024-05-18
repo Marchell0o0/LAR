@@ -58,16 +58,12 @@ class RectangleProcessor:
                  pc_image,
                  color_settings,
                  color_adapt_queue,
-                 dev_adapt_queue,
-                 sat_adapt_queue,
                  show_image=False) -> None:
         
         self.image = image
         self.pc_image = pc_image
         self.color_settings = color_settings
         self.color_adapt_queue = color_adapt_queue
-        self.dev_adapt_queue = dev_adapt_queue
-        self.sat_adapt_queue = sat_adapt_queue
         self.rectangles: List[Rectangle] = []
         self.show_image = show_image
 
@@ -78,11 +74,6 @@ class RectangleProcessor:
         
         result_mask = np.zeros_like(image_mask)
         original_image = self.image.copy()
-        
-        # image_mask = cv2.GaussianBlur(image_mask, (5, 5), 0)
-        # cv2.imshow('Blured mask', image_mask)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
         
         numLabels, labels, stats, centroids = cv2.connectedComponentsWithStats(
             image_mask,
@@ -142,21 +133,22 @@ class RectangleProcessor:
         original_image = image_labels.copy()
 
         image_mask = cv2.GaussianBlur(image_mask, (7, 7), 0)
+        # cv2.imshow('Blured mask', image_mask)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
 
         # TODO: remove almost_rectg_counter
         # almost_rectg_counter = 0
         
         pc_error_counter = 0
 
-        # image_mask = cv2.blur(image_mask,(9,9))
+        # image_mask = cv2.blur(image_mask,(7,7))
 
         # Find edges in the image using Cannyq
         # edges = cv2.Canny(image_mask, 50, 150)
 
         contours, _ = cv2.findContours(image_mask,
-                                    # was RETR_TREE 16.05
                                     cv2.RETR_TREE,
-                                    # cv2.RETR_EXTERNAL,
                                     cv2.CHAIN_APPROX_SIMPLE
                                     )
         
@@ -222,24 +214,14 @@ class RectangleProcessor:
                             y_coords.append(rectangle_y)
                             distances.append(true_distance)
                             x_coords.append(rectangle_x)
-                            
-                        # print(f"X of {point} element is: {rectangle_x}")
-                        # print(f"Z HYP of {point} element is: {rectangle_distance + cylinder_rad}")
-                        # print(f"Z TRUE of {point} element is: {true_distance}")
                     
                     Uleh.utils.remove_values_excluding_outliers(distances, outlier_distance) 
                     if len(distances) != 0 and len(y_coords) != 0: 
                         rectangle_distance = np.mean(distances)   
                         rectangle_y = np.mean(y_coords)
                     # else:
-                    #     rectangle_distance = None
-                    #     rectangle_y = None
                     #     # print("FINAL Y or DISTANCE is EMPTY")
                     #     pc_error_counter += 1
-                    
-                    # if (rectangle_y is not None and
-                    #     not np.isnan(rectangle_distance) and
-                    #     rectangle_distance is not None):
                         
                         rectangle_angle = Uleh.utils.calculate_angle(rectangle_y, rectangle_distance)
                         
@@ -266,7 +248,7 @@ class RectangleProcessor:
                             Uleh.utils.draw_rectangle(result_mask, original_image, rectangle)
                             # print(rectangle)
                     else:
-                        # print("FINAL Y or DISTANCE is NaN")
+                        print("FINAL Y or DISTANCE is NaN")
                         pc_error_counter += 1
         
         # print(f"ALMOST RECTANGLES: {almost_rectg_counter}")        
@@ -282,7 +264,7 @@ class RectangleProcessor:
         
         if self.image is not None and self.pc_image is not None:
             for color_name in colors:
-
+                
                 # TODO: remove color_params argument from create_mask
                 result_masked[color_name] = Uleh.color.create_mask(self.image,
                                                             color_name,
@@ -300,9 +282,7 @@ class RectangleProcessor:
                 self.rectangles,
                 self.image,
                 self.color_settings,
-                self.color_adapt_queue,
-                self.dev_adapt_queue,
-                self.sat_adapt_queue)
+                self.color_adapt_queue)
             
             cylinders = []
             

@@ -11,7 +11,7 @@ from Mark.path_creation import PathCreation
 from Mark.kalman import KalmanFilter
 
 from Uleh.rectangle import RectangleProcessor
-from Uleh.color import ColorSettings, ColorHueQueue
+from Uleh.color import ColorSettings, ColorQueue
 
 # Running pygame without the display to resolve a dependency with OpenGL
 import pygame
@@ -149,9 +149,7 @@ def main():
         turtle, rate = initialize_turtle()
 
         color_settings = ColorSettings()
-        color_adapt_queue = ColorHueQueue(color_settings, parameter="hue")
-        dev_adapt_queue = ColorHueQueue(color_settings, parameter="dev")
-        sat_adapt_queue = ColorHueQueue(color_settings, parameter="sat")
+        color_adapt_queue = ColorQueue(color_settings)
 
         previous_odometry = (0, 0, 0)
 
@@ -201,6 +199,7 @@ def main():
                 print(obstacle_measurements)
                 if image_rectg is not None:
                     cv2.imshow('RGB Camera', image_rectg)
+
 
             # print("Measured data:", obstacle_measurements)
 
