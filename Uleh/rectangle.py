@@ -67,15 +67,15 @@ class RectangleProcessor:
         self.rectangles: List[Rectangle] = []
         self.show_image = show_image
 
-    def detect_labels(self, image_mask,
+    def detect_labels(self, 
+                    image_mask,
                     min_area = 800,
                     aspect_ratio_range = [2, 8]
                     ):
         
         result_mask = np.zeros_like(image_mask)
-        original_image = self.image.copy()
         
-        numLabels, labels, stats, centroids = cv2.connectedComponentsWithStats(
+        numLabels, labels, stats, _ = cv2.connectedComponentsWithStats(
             image_mask,
             4,
             cv2.CV_32S
@@ -94,11 +94,9 @@ class RectangleProcessor:
                 y = stats[label, cv2.CC_STAT_TOP]
                 
                 # Get the most common non-zero value within the label's bound box
-                label_color_value = np.bincount(
-                    image_mask[y:y+height, x:x+width].flatten()).argmax()
                 
                 component_mask = ((labels == label).astype("uint8") 
-                                * label_color_value)
+                                * 255)
                 result_mask = np.maximum(result_mask, component_mask)
                 cv2.rectangle(result_mask,
                               (x, y),
@@ -107,33 +105,25 @@ class RectangleProcessor:
                               3
                               )
                 
-                # cv2.rectangle(original_image,
-                #             (int(x), int(y)),
-                #             (int(x + width), int(y + height)),
-                #             (255, 255, 255),
-                #             2
-                #             )
-                # cv2.putText(original_image,
-                #             "Label",
-                #             (int(cX - width),
-                #             int(cY)),
-                #             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
-        return result_mask, original_image
+        return result_mask
 
     def detect_rectangles(self, 
-                        image_mask,
-                        image_labels,
+                        masked_labels,
+                        original_image,
+                        color_name,
                         epsilon = 0.02,
                         vertices_range = [4, 6],
                         min_area = 800,
                         aspect_ratio_range = [2, 8],
                         outlier_distance=0.1,
                         cylinder_rad = 0.025):
-        result_mask = np.zeros_like(image_mask)
-        original_image = image_labels.copy()
+            
+        result_mask = np.zeros_like(masked_labels)
+        # color_mask = np.where(masked_labels == label_color_value, label_color_value, 0).astype(np.uint8)
 
-        image_mask = cv2.GaussianBlur(image_mask, (7, 7), 0)
-        # cv2.imshow('Blured mask', image_mask)
+        image_mask = cv2.GaussianBlur(masked_labels, (7, 7), 0)
+        # image_mask = cv2.GaussianBlur(image_mask, (7, 7), 0)
+        # cv2.imshow('Color mask', color_mask)
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
 
@@ -152,9 +142,10 @@ class RectangleProcessor:
                                     cv2.CHAIN_APPROX_SIMPLE
                                     )
         
-        if not contours:
-            # print("No contours found.")
-            return self.rectangles, result_mask, original_image
+        # TODO: maybe remove this comdition
+        # if not contours:
+        #     # print("No contours found.")
+        #     return self.rectangles, result_mask, original_image
 
         # print("Num of contours found: ", len(contours))
         for cnt in contours:
@@ -186,9 +177,7 @@ class RectangleProcessor:
                     box_points = cv2.boxPoints(min_area_rect)
                     box_points = np.int0(box_points) # Convert to integer
                     
-                    # Get the most common non-zero value within the label's bound box
-                    label_color_value = np.bincount(
-                        image_mask[y:y+height, x:x+width].flatten()).argmax()
+                    label_color_value = Uleh.utils.str_to_color_value(color_name)
                     
                     y_coords = []
                     x_coords = []
@@ -248,14 +237,16 @@ class RectangleProcessor:
                             Uleh.utils.draw_rectangle(result_mask, original_image, rectangle)
                             # print(rectangle)
                     else:
-                        print("FINAL Y or DISTANCE is NaN")
+                        # print("Y or Z is NaN")
                         pc_error_counter += 1
         
         # print(f"ALMOST RECTANGLES: {almost_rectg_counter}")        
         # print("Number of rectangles: ", len(self.rectangles))
         # print(f"Number of errors for PC: ", pc_error_counter)
-        
-        return self.rectangles, result_mask, original_image
+        # cv2.imshow('Rectangles on the image', original_image)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+        return result_mask, original_image
     
 
     def process_image(self):
@@ -263,21 +254,23 @@ class RectangleProcessor:
         result_masked = {}
         
         if self.image is not None and self.pc_image is not None:
+            
+            original_image = self.image.copy()
+            
             for color_name in colors:
                 
-                # TODO: remove color_params argument from create_mask
                 result_masked[color_name] = Uleh.color.create_mask(self.image,
                                                             color_name,
                                                             self.color_settings.calib_values)
             
-            combined_mask = Uleh.color.merge_masks(result_masked[colors[0]],
-                                        result_masked[colors[1]],
-                                        result_masked[colors[2]]
-                                        )
+            # combined_mask = Uleh.color.merge_masks(result_masked[colors[0]],
+            #                             result_masked[colors[1]],
+            #                             result_masked[colors[2]]
+            #                             )
             
-            masked_labels, image_labels = self.detect_labels(combined_mask)
-            self.rectangles, masked_rectangles, image_rectangles = self.detect_rectangles(masked_labels, image_labels)
-            
+                masked_labels = self.detect_labels(result_masked[color_name])
+                masked_rectangles, image_rectangles = self.detect_rectangles(masked_labels, original_image, color_name)
+                    
             Uleh.color.update_image_colors(
                 self.rectangles,
                 self.image,
@@ -307,7 +300,7 @@ class RectangleProcessor:
                 # cv2.imshow('Masked labels', masked_labels)
                 # cv2.imshow('Labels on the image', image_labels)
                 # cv2.imshow('Masked rectangles', masked_rectangles)
-                cv2.imshow('Masked labels', masked_labels)
+                # cv2.imshow('Masked labels', masked_labels)
                 cv2.imshow('Rectangles on the image', image_rectangles)
                 # depth.generate_pc_image(pc_image)
                 cv2.waitKey(0)
@@ -319,4 +312,4 @@ class RectangleProcessor:
             self.rectangles = None
         # TODO: WARNING uncomment the first line instead of the second
         # return cylinders, masked_rectangles, image_rectangles, self.rectangles
-        return cylinders, combined_mask, image_rectangles, self.rectangles
+        return cylinders, masked_labels, image_rectangles, self.rectangles

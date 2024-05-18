@@ -44,15 +44,16 @@ def is_within_range_distance(aspect_ratio, distance, area):
         is_within_range(aspect_ratio, [3.1, 6.8]) and
         is_within_range(area, [2700, 10000])):
         is_in_range = True
-    # elif (is_within_range(distance, [1.3, 2]) and
-    #     is_within_range(aspect_ratio, [3.1, 7.8]) and
-    #     is_within_range(area, [800, 5000])):
-    #     is_in_range = True
+    elif (is_within_range(distance, [1.3, 2]) and
+        is_within_range(aspect_ratio, [3.1, 7.8]) and
+        is_within_range(area, [800, 5000])):
+        is_in_range = True
     # elif (is_within_range(distance, [2, 3]) and
     #     is_within_range(aspect_ratio, [3.7, 8]) and
     #     is_within_range(area, [800, 2000])):
     #     is_in_range = True
-        # print(f"Rectangle outside boundaries - aspect ratio: {aspect_ratio}, distance: {distance}")
+    # if is_in_range == False:
+        # print(f"Rectangle outside boundaries - aspect ratio: {aspect_ratio}, distance: {distance}, area: {area}")
     return is_in_range
         
         
@@ -78,6 +79,7 @@ def draw_rectangle(result_mask, original_image, rectangle):
         rectg_name = "Red"
         draw_color = (0, 0, 255)
     if rectg_name == "None":
+        print(f"Nothing can be drawn with a color value: {rectangle.color}")
         return
     cv2.drawContours(result_mask, [box_points], 0, color_bgr, cv2.FILLED)
     cv2.drawContours(original_image, [approx], 0, (0, 255, 255), 2)
