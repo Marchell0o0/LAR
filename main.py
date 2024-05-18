@@ -109,19 +109,20 @@ def main():
 
     env = Environment(Robot(0, 0, 0), Robot(0, 0, 0),
                       [
-                          # Checkpoint(0, 0, np.pi / 2),
-                          # Checkpoint(0, 0, np.pi),
-                          # Checkpoint(0, 0, -np.pi / 2),
-                          # Checkpoint(0, 0, 0)
+                        #   Checkpoint(0, 0, np.pi / 2),
+                        #   Checkpoint(0, 0, np.pi),
+                        #   Checkpoint(0, 0, -np.pi / 2),
+                        #   Checkpoint(0, 0, 0)
                       ],
                       [],
-                      [Obstacle(1, 0.05, 0),
-                       Obstacle(1, -0.05, 1),
-                       Obstacle(0.5, 0.6, 2),
-                       Obstacle(1.45, 1.28, 0),
-                       Obstacle(1.50, 1.25, 1),
-                       Obstacle(0, 1.60, 2),
-                       Obstacle(0.05, 1.65, 2)
+                      [
+                    #    Obstacle(1, 0.05, 0),
+                    #    Obstacle(1, -0.05, 1),
+                    #    Obstacle(0.5, 0.6, 2),
+                    #    Obstacle(1.45, 1.28, 0),
+                    #    Obstacle(1.50, 1.25, 1),
+                    #    Obstacle(0, 1.60, 2),
+                    #    Obstacle(0.05, 1.65, 2)
                        ])
 
     # env = Environment(Robot(0, 0, 0), Robot(0, 0, 0),
@@ -140,7 +141,8 @@ def main():
 
     if visualization:
         # screen_dimensions = (2160, 3840)
-        screen_dimensions = (1440, 900)
+        # screen_dimensions = (1440, 900)
+        screen_dimensions = (500, 500)
         vis = RobotVisualization(env, path_execution, kalman_filter, screen_dimensions)
 
     if turtlebot:
@@ -151,72 +153,68 @@ def main():
         dev_adapt_queue = ColorHueQueue(color_settings, parameter="dev")
         sat_adapt_queue = ColorHueQueue(color_settings, parameter="sat")
 
-        turtle.reset_odometry()
-        previous_odometry = turtle.get_odometry()
+        previous_odometry = (0, 0, 0)
 
     running: bool = True
     counter: int = 0
     previous_time = 0
-    obstacle_measurements = []
     next_move = (0, 0)
-    counter_since_new_checkpoint: int = 0
+    # counter_since_new_checkpoint: int = 0
     print("Starting main loop")
     while running:
         if visualization:
-            # if counter % 2 == 0:
-            vis.draw_everything()
-            vis.show_cv2()
+            if counter % 5 == 0:
+                vis.draw_everything()
+                vis.show_cv2()
 
         if turtlebot:
             if (cv2.waitKey(1) & 0xFF == ord('q')) or turtle.is_shutting_down():
                 running = False
             # print("Deciding next move")
-            # next_move = path_execution.get_current_move()
-            next_move = (0, 0)
+            next_move = path_execution.get_current_move()
             turtle.cmd_velocity(angular=next_move[1], linear=next_move[0])
 
             # rate.sleep()
 
             # robot isn't moving quickly
             # print("Getting camera readings")
-            image = turtle.get_rgb_image()
-            pc_image = turtle.get_point_cloud()
-            # if counter % 10 == 0:
-            #     print("Saving files")
-            #     np.save(f"camera/{counter}-rgb.npy", image)
-            #     np.save(f"camera/{counter}-pc.npy", pc_image)
-            #     cv2.imwrite(f"camera/{counter}-rgb.png", image)
+            obstacle_measurements = []
+            if next_move[0] < 0.05 and next_move[1] < 0.05:
+                print("Making a measurement")
+                image = turtle.get_rgb_image()
+                pc_image = turtle.get_point_cloud()
+                # if counter % 10 == 0:
+                #     print("Saving files")
+                #     np.save(f"camera/{counter}-rgb.npy", image)
+                #     np.save(f"camera/{counter}-pc.npy", pc_image)
+                #     cv2.imwrite(f"camera/{counter}-rgb.png", image)
 
-            # print("Obstacle recognition")
-            rectg_processor = RectangleProcessor(image,
-                                                    pc_image,
-                                                    color_settings,
-                                                    color_adapt_queue,
-                                                    dev_adapt_queue,
-                                                    sat_adapt_queue)
-            detected_rectgs, masked_rectgs, image_rectg, _ = rectg_processor.process_image()
+                # print("Obstacle recognition")
+                rectg_processor = RectangleProcessor(image,
+                                                        pc_image,
+                                                        color_settings,
+                                                        color_adapt_queue,
+                                                        dev_adapt_queue,
+                                                        sat_adapt_queue)
+                detected_rectgs, masked_rectgs, image_rectg, _ = rectg_processor.process_image()
+                obstacle_measurements = detected_rectgs
+                print(obstacle_measurements)
+                if image_rectg is not None:
+                    cv2.imshow('RGB Camera', image_rectg)
 
-            obstacle_measurements = detected_rectgs
-            print("Measured data:", obstacle_measurements)
+            # print("Measured data:", obstacle_measurements)
 
-            if image_rectg is not None:
-                cv2.imshow('RGB Camera', image_rectg)
-
-            # if next_move[1] < 0.1:
-            # else:
-            #     obstacle_measurements = []
-                # print("Turning too fast")
-
+          
             current_odometry = turtle.get_odometry()
             odometry_change = current_odometry - previous_odometry
 
             # TODO: TEST THIS
-            odometry_change[2] *= 1.0989
+            # odometry_change[2] *= 1.0989
 
             # start recording odometry changes right after using it
             previous_odometry = current_odometry
 
-            print("Kalman filter updates")
+            # print("Kalman filter updates")
             # update mu_t-1 to mu_t
             kalman_filter.pos_update(odometry_change)
 
@@ -224,11 +222,9 @@ def main():
             kalman_filter.obstacles_measurement_update(obstacle_measurements)
             kalman_filter.update_for_visualization()
 
-            # if env.update_checkpoints(path_execution.current_checkpoint_idx):
-            #     counter_since_new_checkpoint = 0
+            env.update_checkpoints(path_execution.current_checkpoint_idx)
 
-            # path_execution.update_path()
-            # counter_since_new_checkpoint += 1
+            path_execution.update_path()
 
         else:
             if cv2.waitKey(1) & 0xFF == ord('q'):

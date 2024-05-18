@@ -14,13 +14,14 @@ class PathExecution:
         self.current_next_node = None
         self.current_checkpoint_idx = 0
 
-        self.max_lookahead_distance = 0.7
+        self.max_lookahead_distance = 0.8
         self.min_lookahead_distance = 0.025
         self.current_lookahead_distance = self.max_lookahead_distance
 
         self.path = []
         self.path_creation = path_creation
         self.lookahead_point = (0, 0)
+        self.distance_to_path = 0
 
         self.current_speed = 0
         self.previous_move_time = 0
@@ -51,7 +52,8 @@ class PathExecution:
                 min_dist = dist
                 idx = i
                 self.current_lookahead_distance = dist
-
+                self.distance_to_path = dist
+        
         # Define coefficients for the interpolation
         interpolation_power = 1 / 5
         a = ((self.min_lookahead_distance - self.max_lookahead_distance)
@@ -114,11 +116,11 @@ class PathExecution:
                 normalized_diff = abs(angle_difference) / (np.pi / 4)
 
                 # Linear interpolation between max and min angular speed
-                angular_speed = ((self.env.robot.max_angular_speed - self.env.robot.min_angular_speed)
+                angular_speed = ((self.env.robot.max_angular_speed*2 - self.env.robot.min_angular_speed)
                                  * normalized_diff + self.env.robot.min_angular_speed)
 
                 # Ensure angular speed does not drop below the minimum
-                angular_speed = min(angular_speed, self.env.robot.max_angular_speed)
+                angular_speed = min(angular_speed, self.env.robot.max_angular_speed*2)
                 angular_speed = max(angular_speed, self.env.robot.min_angular_speed)
 
                 direction = -np.sign(angle_difference)
@@ -152,6 +154,8 @@ class PathExecution:
 
         if abs(between_angle) > np.pi / 2:
             linear_speed = 0
+        elif abs(between_angle) > np.pi / 8 and self.distance_to_path:
+            linear_speed = 0
         else:
             linear_speed_scale = ((np.pi / 2) - abs(between_angle)) / \
                                  (np.pi / 2) * self.current_lookahead_distance / self.max_lookahead_distance
@@ -180,7 +184,7 @@ class PathExecution:
                     self.get_to_desired_speed(0)
                     return (self.current_speed, 0)
             else:
-                if not self.env.found_finish and self.counter > 10:
+                if not self.env.found_finish and self.counter > 20:
                     print("Adding a new checkpoint for exploration")
                     exploration_distance = 0.30
                     # self.get_to_desired_speed(0)

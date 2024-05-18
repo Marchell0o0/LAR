@@ -8,12 +8,12 @@ class KalmanFilter:
         self.sigma = 0.01 * np.eye(3, dtype=float)
         self.mu = np.array([[self.env.robot.x], [self.env.robot.y], [self.env.robot.a]], dtype=np.float64)
 
-        self.R = np.diag([0.0001, 0.0001, 0.01])  # sigma x, y, a
-        self.Q_obstacles = np.diag([0.02, np.deg2rad(0.1), 0.0001])  # sigma r, phi, color
+        self.R = np.diag([0.0001, 0.0001, 0.0001])  # sigma x, y, a
+        self.Q_obstacles = np.diag([0.05, np.deg2rad(2), 0.0001])  # sigma r, phi, color
 
         # acceptable mahalanobis distance
-        self.alpha = 4
-        self.alpha_for_green = 0.8
+        self.alpha = 2
+        self.alpha_for_green = 0.5
 
 
 
@@ -148,8 +148,8 @@ class KalmanFilter:
             z_actual = np.reshape(z_actual, (3, 1))
 
             z_delta = z_actual - z_hat
-            print("Difference of measurement from current data for:", measured_obstacle)
-            print("Is: (x, y, color)", z_delta.T)
+            # print("Difference of measurement from current data for:", measured_obstacle)
+            # print("Is: (x, y, color)", z_delta.T)
             z_delta[1] = np.arctan2(np.sin(z_delta[1]), np.cos(z_delta[1]))
 
             H = self.calculate_jacobian(delta, q, closest_idx)

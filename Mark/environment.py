@@ -18,13 +18,19 @@ class Robot:
         # self.min_angular_speed = np.pi / 16
         # self.min_linear_speed = 0.05
 
-        self.linear_acceleration = 0.7  # m/s^2
-        self.max_linear_speed = 1  # m/s
-        self.max_angular_speed = np.pi / 2  # rad/s
-        self.min_angular_speed = np.pi / 8
+        # self.linear_acceleration = 0.7  # m/s^2
+        # self.max_linear_speed = 1  # m/s
+        # self.max_angular_speed = np.pi / 2  # rad/s
+        # self.min_angular_speed = np.pi / 8
+        # self.min_linear_speed = 0.00
+
+        self.linear_acceleration = 1  # m/s^2
+        self.max_linear_speed = 0.4  # m/s
+        self.max_angular_speed = np.pi / 8  # rad/s
+        self.min_angular_speed = np.pi / 16
         self.min_linear_speed = 0.00
 
-        self.distance_allowance = 0.03
+        self.distance_allowance = 0.05
         self.path_update_distance = 0.04
         # self.angular_speed_distance_allowance = 0.06
         self.angle_allowance = np.deg2rad(1)
@@ -68,7 +74,7 @@ class Environment:
         self.primary_checkpoints_idxs: list[int] = []
         self.real_robot: Robot = real_robot
 
-        self.measurements_to_be_sure = 3
+        self.measurements_to_be_sure = 5
 
         self.found_finish = False
 
@@ -76,27 +82,27 @@ class Environment:
 
     @staticmethod
     def generate_checkpoints_for_exploration(main_checkpoint: Checkpoint, side: int):
-        move_back_distance = 0.1
-        move_back = Checkpoint(main_checkpoint.x - move_back_distance * np.cos(main_checkpoint.a),
-                               main_checkpoint.y - move_back_distance * np.sin(main_checkpoint.a),
-                               main_checkpoint.a - np.pi)
-        move_back.a = np.arctan2(np.sin(move_back.a), np.cos(move_back.a))
+        # move_back_distance = 0.1
+        # move_back = Checkpoint(main_checkpoint.x - move_back_distance * np.cos(main_checkpoint.a),
+        #                        main_checkpoint.y - move_back_distance * np.sin(main_checkpoint.a),
+        #                        main_checkpoint.a - np.pi)
+        # move_back.a = np.arctan2(np.sin(move_back.a), np.cos(move_back.a))
 
-        turn_to_the_side = Checkpoint(move_back.x, move_back.y, move_back.a + side * np.pi / 2)
+        turn_to_the_side = Checkpoint(main_checkpoint.x, main_checkpoint.y, main_checkpoint.a - side * np.pi / 2)
         turn_to_the_side.a = np.arctan2(np.sin(turn_to_the_side.a), np.cos(turn_to_the_side.a))
 
         move_forward = 0.3
         move_forward = Checkpoint(turn_to_the_side.x + move_forward * np.cos(turn_to_the_side.a),
                                   turn_to_the_side.y + move_forward * np.sin(turn_to_the_side.a),
                                   turn_to_the_side.a)
-
-        look_around_right = Checkpoint(move_forward.x, move_forward.y, move_forward.a - np.pi / 4)
+        look_around_angle = np.pi / 8
+        look_around_right = Checkpoint(move_forward.x, move_forward.y, move_forward.a - look_around_angle)
         look_around_right.a = np.arctan2(np.sin(look_around_right.a), np.cos(look_around_right.a))
 
-        look_around_left = Checkpoint(move_forward.x, move_forward.y, move_forward.a + np.pi / 4)
+        look_around_left = Checkpoint(move_forward.x, move_forward.y, move_forward.a + look_around_angle)
         look_around_left.a = np.arctan2(np.sin(look_around_left.a), np.cos(look_around_left.a))
 
-        return [move_back, turn_to_the_side, move_forward, look_around_right, look_around_left, move_forward]
+        return [turn_to_the_side, move_forward, look_around_right, look_around_left, move_forward]
 
     def add_checkpoint_for_obstacle_pair(self, obstacle_one, obstacle_two, current_checkpoint_idx):
         center = ((obstacle_one.x + obstacle_two.x) / 2, (obstacle_one.y + obstacle_two.y) / 2)
@@ -126,7 +132,7 @@ class Environment:
         for idx in self.primary_checkpoints_idxs:
             distance_from_center = np.sqrt((center[0] - self.checkpoints[idx].x) ** 2 +
                                            (center[1] - self.checkpoints[idx].y) ** 2)
-            if abs(distance_from_center - offset_distance) > 0.1:
+            if abs(distance_from_center - offset_distance) > 0.2:
                 continue
             found = True
 

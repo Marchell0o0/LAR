@@ -5,7 +5,7 @@ import cv2
 
 
 class RobotVisualization:
-    def __init__(self, env, path_execution, kalman_filter, screen_size, window_percentage=0.8, margin=1):
+    def __init__(self, env, path_execution, kalman_filter, screen_size, window_percentage=0.8, margin=0.5):
         self.env = env
         self.path_execution = path_execution
         self.kalman_filter = kalman_filter
@@ -13,9 +13,9 @@ class RobotVisualization:
 
         pygame.init()
         # self.base_size = (3840, 3840) # 4K square
-        self.base_size = (1080, 1080)
+        # self.base_size = (1080, 1080)
         # self.base_size = (500, 500)
-        # self.base_size = (400, 400)
+        self.base_size = (400, 400)
         # self.base_size = (250, 250)
         self.screen = pygame.display.set_mode(self.base_size)
         self.clock = pygame.time.Clock()
@@ -56,9 +56,10 @@ class RobotVisualization:
     def draw_everything(self):
         # self.draw_grid()
         self.find_limits()
-        self.initialize_grid()
-        if self.grid_surface:
-            self.screen.blit(self.grid_surface, (0, 0))
+        self.screen.fill((255,255,255))
+        # self.initialize_grid()
+        # if self.grid_surface:
+            # self.screen.blit(self.grid_surface, (0, 0))
 
         for hidden_obstacle in self.env.hidden_obstacles:
             self.draw_obstacle(hidden_obstacle, 0, True)
@@ -75,7 +76,7 @@ class RobotVisualization:
             self.draw_checkpoint(checkpoint)
 
         self.draw_robot(self.env.robot)
-        self.draw_robot(self.env.real_robot, True)
+        # self.draw_robot(self.env.real_robot, True)
 
     def draw_path(self, path):
         updated_rects = []  # List to store rectangles that need to be updated
