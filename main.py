@@ -49,6 +49,9 @@ class TurtlebotApp:
     def initialize_turtlebot(self):
         try:
             from robolab_turtlebot import Turtlebot, get_time, Rate
+            self.turtle = Turtlebot(rgb=self.rgb_image, pc=self.point_cloud, depth=self.depth_image)
+            self.rate = Rate(self.max_update_rate)
+
             self.initialize_robot()
             self.color_settings = ColorSettings()
             self.color_adapt_queue = ColorQueue(self.color_settings)
@@ -57,8 +60,6 @@ class TurtlebotApp:
             self.turtlebot = False
 
     def initialize_robot(self):
-        self.turtle = Turtlebot(rgb=self.rgb_image, pc=self.point_cloud, depth=self.depth_image)
-
         if self.rgb_image:
             self.turtle.wait_for_rgb_image()
             print('Rgb image received')
@@ -73,8 +74,6 @@ class TurtlebotApp:
         print("Odometry received")
 
         self.turtle.reset_odometry()
-
-        self.rate = Rate(self.update_rate)
 
     def turtle_routine(self):
         next_move = self.path_execution.get_current_move()
@@ -165,32 +164,32 @@ def main():
     turtlebot = "-turtlebot" in sys.argv
 
     # Example environment for simulation testing
-    env = Environment(Robot(0, 0, 0),
-                      [
-                          # Checkpoint(0, 0, np.pi / 2),
-                          # Checkpoint(0, 0, np.pi),
-                          # Checkpoint(0, 0, -np.pi / 2),
-                          # Checkpoint(0, 0, 0)
-                      ],
-                      [],
-                      [Obstacle(1, 0.05, 0),
-                       Obstacle(1, -0.05, 1),
-                       Obstacle(0.5, 0.6, 2),
-                       Obstacle(1.45, 1.28, 0),
-                       Obstacle(1.50, 1.25, 1),
-                       Obstacle(0, 1.60, 2),
-                       Obstacle(0.05, 1.65, 2)
-                       ])
-
     # env = Environment(Robot(0, 0, 0),
     #                   [
-    #                       # Checkpoint(0, 0, np.pi/2),
-    #                       #  Checkpoint(0, 0, np.pi),
-    #                       #  Checkpoint(0, 0, -np.pi/2),
-    #                       #  Checkpoint(0, 0, 0)
+    #                       # Checkpoint(0, 0, np.pi / 2),
+    #                       # Checkpoint(0, 0, np.pi),
+    #                       # Checkpoint(0, 0, -np.pi / 2),
+    #                       # Checkpoint(0, 0, 0)
     #                   ],
     #                   [],
-    #                   [])
+    #                   [Obstacle(1, 0.05, 0),
+    #                    Obstacle(1, -0.05, 1),
+    #                    Obstacle(0.5, 0.6, 2),
+    #                    Obstacle(1.45, 1.28, 0),
+    #                    Obstacle(1.50, 1.25, 1),
+    #                    Obstacle(0, 1.60, 2),
+    #                    Obstacle(0.05, 1.65, 2)
+    #                    ])
+
+    env = Environment(Robot(0, 0, 0),
+                      [
+                          # Checkpoint(0, 0, np.pi/2),
+                          #  Checkpoint(0, 0, np.pi),
+                          #  Checkpoint(0, 0, -np.pi/2),
+                          #  Checkpoint(0, 0, 0)
+                      ],
+                      [],
+                      [])
 
     app = TurtlebotApp(env, visualization=visualization, turtlebot=turtlebot)
     app.run()
