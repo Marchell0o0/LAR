@@ -1,6 +1,7 @@
 import time
 import sys
 import cv2
+import numpy as np
 
 from Mark.visualization import RobotVisualization
 from Mark.environment import Environment, Robot, Checkpoint, Obstacle
@@ -164,32 +165,23 @@ def main():
     turtlebot = "-turtlebot" in sys.argv
 
     # Example environment for simulation testing
-    # env = Environment(Robot(0, 0, 0),
-    #                   [
-    #                       # Checkpoint(0, 0, np.pi / 2),
-    #                       # Checkpoint(0, 0, np.pi),
-    #                       # Checkpoint(0, 0, -np.pi / 2),
-    #                       # Checkpoint(0, 0, 0)
-    #                   ],
-    #                   [],
-    #                   [Obstacle(1, 0.05, 0),
-    #                    Obstacle(1, -0.05, 1),
-    #                    Obstacle(0.5, 0.6, 2),
-    #                    Obstacle(1.45, 1.28, 0),
-    #                    Obstacle(1.50, 1.25, 1),
-    #                    Obstacle(0, 1.60, 2),
-    #                    Obstacle(0.05, 1.65, 2)
-    #                    ])
-
-    env = Environment(Robot(0, 0, 0),
-                      [
-                          # Checkpoint(0, 0, np.pi/2),
-                          #  Checkpoint(0, 0, np.pi),
-                          #  Checkpoint(0, 0, -np.pi/2),
-                          #  Checkpoint(0, 0, 0)
-                      ],
-                      [],
-                      [])
+    if not turtlebot:
+        env = Environment(Robot(0, 0, 0),
+                          [Checkpoint(0, 0, angle) for angle in np.arange(0, 5 * np.pi / 2, np.pi / 2)],
+                          [],
+                          [Obstacle(1, 0.05, 0),
+                           Obstacle(1, -0.05, 1),
+                           Obstacle(0.5, 0.6, 2),
+                           Obstacle(1.45, 1.28, 0),
+                           Obstacle(1.50, 1.25, 1),
+                           Obstacle(0, 1.60, 2),
+                           Obstacle(0.05, 1.65, 2)
+                           ])
+    else:
+        env = Environment(Robot(0, 0, 0),
+                          [Checkpoint(0, 0, angle) for angle in np.arange(0, 5 * np.pi / 2, np.pi / 2)],
+                          [],
+                          [])
 
     app = TurtlebotApp(env, visualization=visualization, turtlebot=turtlebot)
     app.run()
