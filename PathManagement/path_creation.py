@@ -1,4 +1,4 @@
-from Mark.astar import AStar, Node
+from PathManagement.astar import AStar, Node
 import numpy as np
 import time
 

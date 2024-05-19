@@ -1,6 +1,6 @@
 import numpy as np
 import time
-from Mark.environment import Checkpoint
+from environment import Checkpoint
 
 
 def distance(point1, point2) -> float:

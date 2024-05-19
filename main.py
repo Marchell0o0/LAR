@@ -3,11 +3,11 @@ import sys
 import cv2
 import numpy as np
 
-from Mark.visualization import RobotVisualization
-from Mark.environment import Environment, Robot, Checkpoint, Obstacle
-from Mark.path_execution import PathExecution
-from Mark.path_creation import PathCreation
-from Mark.kalman import KalmanFilter
+from Graphics.visualization import RobotVisualization
+from environment import Environment, Robot, Checkpoint, Obstacle
+from PathManagement.path_execution import PathExecution
+from PathManagement.path_creation import PathCreation
+from SLAM.kalman import KalmanFilter
 
 from Vision.rectangle import RectangleProcessor
 from Vision.color import ColorSettings, ColorQueue
