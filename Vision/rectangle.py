@@ -1,10 +1,10 @@
-import cv2 # type: ignore
-import numpy as np # type: ignore
+import cv2
+import numpy as np
 from typing import List, Type
 
-import Uleh.utils
-import Uleh.color
-import Uleh.depth
+import Vision.utils
+import Vision.color
+import Vision.depth
 
 class Rectangle:
     def __init__(self,
@@ -45,7 +45,6 @@ class Rectangle:
                 f"Width and Height: {self.width}, {self.height}\n"
                 f"Angle_rot: {self.angle_rot}\n"
                 f"Box Points: {self.box_points}\n"
-                # f"Major Points: {self.major_points}\n"
                 f"Aspect ratio: {self.aspect_ratio}\n"
                 f"Color: {self.color}\n"
                 f"Distance: {self.distance}\n"
@@ -88,7 +87,7 @@ class RectangleProcessor:
                 aspect_ratio = float(height/width)
             else:
                 aspect_ratio = 0
-            if area > min_area and Uleh.utils.is_within_range(aspect_ratio,
+            if area > min_area and Vision.utils.is_within_range(aspect_ratio,
                                                         aspect_ratio_range):
                 x = stats[label, cv2.CC_STAT_LEFT]
                 y = stats[label, cv2.CC_STAT_TOP]
@@ -119,35 +118,14 @@ class RectangleProcessor:
                         cylinder_rad = 0.025):
             
         result_mask = np.zeros_like(masked_labels)
-        # color_mask = np.where(masked_labels == label_color_value, label_color_value, 0).astype(np.uint8)
 
         image_mask = cv2.GaussianBlur(masked_labels, (7, 7), 0)
-        # image_mask = cv2.GaussianBlur(image_mask, (7, 7), 0)
-        # cv2.imshow('Color mask', color_mask)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
-
-        # TODO: remove almost_rectg_counter
-        # almost_rectg_counter = 0
-        
-        pc_error_counter = 0
-
-        # image_mask = cv2.blur(image_mask,(7,7))
-
-        # Find edges in the image using Cannyq
-        # edges = cv2.Canny(image_mask, 50, 150)
 
         contours, _ = cv2.findContours(image_mask,
                                     cv2.RETR_TREE,
                                     cv2.CHAIN_APPROX_SIMPLE
                                     )
         
-        # TODO: maybe remove this comdition
-        # if not contours:
-        #     # print("No contours found.")
-        #     return self.rectangles, result_mask, original_image
-
-        # print("Num of contours found: ", len(contours))
         for cnt in contours:
             peri = cv2.arcLength(cnt, True)
             approx = cv2.approxPolyDP(cnt, peri * epsilon, True)
@@ -162,14 +140,11 @@ class RectangleProcessor:
             M = cv2.moments(cnt)
             # m00 will never be zero for polygons without self-intesections
             if M["m00"] == 0:
-                # print("Polygon was self-intersected")
                 continue
             
             if (area > min_area and
-                Uleh.utils.is_within_range(aspect_ratio, aspect_ratio_range)):
-                # TODO: remove almost_rectg_counter
-                # almost_rectg_counter += 1
-                if Uleh.utils.is_within_range(num_vertices, vertices_range):
+                Vision.utils.is_within_range(aspect_ratio, aspect_ratio_range)):
+                if Vision.utils.is_within_range(num_vertices, vertices_range):
                     cX = int(M["m10"] / M["m00"])
                     cY = int(M["m01"] / M["m00"])
                     min_area_rect = cv2.minAreaRect(approx)
@@ -177,20 +152,19 @@ class RectangleProcessor:
                     box_points = cv2.boxPoints(min_area_rect)
                     box_points = np.int0(box_points) # Convert to integer
                     
-                    label_color_value = Uleh.utils.str_to_color_value(color_name)
+                    label_color_value = Vision.utils.str_to_color_value(color_name)
                     
                     y_coords = []
                     x_coords = []
                     distances = []
                     true_distance = None
                     
-                    points = Uleh.utils.calculate_rectangle_points(self.image, cX, cY, height, width, angle_rot)
+                    points = Vision.utils.calculate_rectangle_points(self.image, cX, cY, height, width, angle_rot)
                     for point in points[:3]:
-                        rectangle_x, rectangle_y, rectangle_distance = Uleh.depth.find_point_pc_coords(self.pc_image,
+                        rectangle_x, rectangle_y, rectangle_distance = Vision.depth.find_point_pc_coords(self.pc_image,
                                                                     point[0],
                                                                     point[1]
                                                                     )
-                        # TODO: rewrite error checking
                         if (not np.isnan(rectangle_y) and
                             rectangle_y is not None and
                             not np.isnan(rectangle_distance) and
@@ -204,18 +178,15 @@ class RectangleProcessor:
                             distances.append(true_distance)
                             x_coords.append(rectangle_x)
                     
-                    Uleh.utils.remove_values_excluding_outliers(distances, outlier_distance) 
+                    Vision.utils.remove_values_excluding_outliers(distances, outlier_distance) 
                     if len(distances) != 0 and len(y_coords) != 0: 
                         rectangle_distance = np.mean(distances)   
                         rectangle_y = np.mean(y_coords)
-                    # else:
-                    #     # print("FINAL Y or DISTANCE is EMPTY")
-                    #     pc_error_counter += 1
-                        
-                        rectangle_angle = Uleh.utils.calculate_angle(rectangle_y, rectangle_distance)
+
+                        rectangle_angle = Vision.utils.calculate_angle(rectangle_y, rectangle_distance)
                         
                         if (rectangle_angle is not None and
-                            Uleh.utils.is_within_range_distance(aspect_ratio, rectangle_distance, area)):
+                            Vision.utils.is_within_range_distance(aspect_ratio, rectangle_distance, area)):
                     
                             rectangle = Rectangle(
                                                 area,
@@ -234,18 +205,8 @@ class RectangleProcessor:
                                                 rectangle_y)
                             
                             self.rectangles.append(rectangle)
-                            Uleh.utils.draw_rectangle(result_mask, original_image, rectangle)
-                            # print(rectangle)
-                    else:
-                        # print("Y or Z is NaN")
-                        pc_error_counter += 1
+                            Vision.utils.draw_rectangle(result_mask, original_image, rectangle)
         
-        # print(f"ALMOST RECTANGLES: {almost_rectg_counter}")        
-        # print("Number of rectangles: ", len(self.rectangles))
-        # print(f"Number of errors for PC: ", pc_error_counter)
-        # cv2.imshow('Rectangles on the image', original_image)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
         return result_mask, original_image
     
 
@@ -259,22 +220,16 @@ class RectangleProcessor:
             
             for color_name in colors:
                 
-                result_masked[color_name] = Uleh.color.create_mask(self.image,
+                result_masked[color_name] = Vision.color.create_mask(self.image,
                                                             color_name,
                                                             self.color_settings.calib_values)
-            
-            # combined_mask = Uleh.color.merge_masks(result_masked[colors[0]],
-            #                             result_masked[colors[1]],
-            #                             result_masked[colors[2]]
-            #                             )
             
                 masked_labels = self.detect_labels(result_masked[color_name])
                 masked_rectangles, image_rectangles = self.detect_rectangles(masked_labels, original_image, color_name)
                     
-            Uleh.color.update_image_colors(
+            self.color_settings.update_image_colors(
                 self.rectangles,
                 self.image,
-                self.color_settings,
                 self.color_adapt_queue)
             
             cylinders = []
@@ -300,7 +255,7 @@ class RectangleProcessor:
                 # cv2.imshow('Masked labels', masked_labels)
                 # cv2.imshow('Labels on the image', image_labels)
                 # cv2.imshow('Masked rectangles', masked_rectangles)
-                # cv2.imshow('Masked labels', masked_labels)
+                cv2.imshow('Masked labels', masked_labels)
                 cv2.imshow('Rectangles on the image', image_rectangles)
                 # depth.generate_pc_image(pc_image)
                 cv2.waitKey(0)
@@ -310,6 +265,5 @@ class RectangleProcessor:
             masked_rectangles = None
             image_rectangles = None
             self.rectangles = None
-        # TODO: WARNING uncomment the first line instead of the second
-        # return cylinders, masked_rectangles, image_rectangles, self.rectangles
+
         return cylinders, masked_labels, image_rectangles, self.rectangles

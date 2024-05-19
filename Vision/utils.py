@@ -1,7 +1,7 @@
-import cv2 # type: ignore
-import numpy as np # type: ignore
-import matplotlib.pyplot as plt # type: ignore
-from scipy.ndimage import gaussian_filter1d # type: ignore
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.ndimage import gaussian_filter1d
 import math
 
 def color_mask(hsv_image, lowerLimit, upperLimit):
@@ -29,7 +29,6 @@ def smooth_histogram_with_gaussian(hist, sigma = 1):
 def is_within_range(value, range_bounds):
     return range_bounds[0] <= value <= range_bounds[1]
 
-# TODO: rewrite this function
 def is_within_range_distance(aspect_ratio, distance, area):
     is_in_range = False
     if (is_within_range(distance, [0.15, 0.5]) and
@@ -44,16 +43,14 @@ def is_within_range_distance(aspect_ratio, distance, area):
         is_within_range(aspect_ratio, [3.1, 7]) and
         is_within_range(area, [2200, 10000])):
         is_in_range = True
-    # elif (is_within_range(distance, [1.3, 2]) and
-    #     is_within_range(aspect_ratio, [3.1, 7.8]) and
-    #     is_within_range(area, [800, 5000])):
-    #     is_in_range = True
-    # elif (is_within_range(distance, [2, 3]) and
-    #     is_within_range(aspect_ratio, [3.7, 8]) and
-    #     is_within_range(area, [800, 2000])):
-    #     is_in_range = True
-    # if is_in_range == False:
-        # print(f"Rectangle outside boundaries - aspect ratio: {aspect_ratio}, distance: {distance}, area: {area}")
+    elif (is_within_range(distance, [1.3, 2]) and
+        is_within_range(aspect_ratio, [3.1, 7.8]) and
+        is_within_range(area, [800, 5000])):
+        is_in_range = True
+    elif (is_within_range(distance, [2, 3]) and
+        is_within_range(aspect_ratio, [3.7, 8]) and
+        is_within_range(area, [800, 2000])):
+        is_in_range = True
     return is_in_range
         
         
@@ -84,30 +81,14 @@ def draw_rectangle(result_mask, original_image, rectangle):
     cv2.drawContours(result_mask, [box_points], 0, color_bgr, cv2.FILLED)
     cv2.drawContours(original_image, [approx], 0, (0, 255, 255), 2)
     cv2.drawContours(original_image, [box_points], 0, draw_color, 2)
-    # cv2.putText(original_image, rectg_name, (cX, cY),
-    #                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, draw_color, 2)
     cv2.putText(original_image,
                 f"Z: {distance:.2f} m",
-                # (int(cX - width * 0.5),
-                #  int(cY - height * 0.6)),
                 (cX, cY),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
     cv2.putText(original_image,
                 f"Y: {y:.2f} m",
-                # (int(cX - width * 0.5),
-                #  int(cY - height * 0.6)),
                 (cX, int(cY -height / 4)),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
-    # cv2.putText(original_image,
-    #             f"Z2: {rectangle.distance2:.2f} m",
-    #             (int(cX),
-    #              int(cY - height * 0.3)),
-    #                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
-    # cv2.putText(original_image,
-    #             f"Z3: {rectangle.distance3:.2f} m",
-    #             (int(cX),
-    #              int(cY + height * 0.3)),
-    #                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
     cv2.putText(original_image,
                 f"A: {np.degrees(angle_pos):.2f} deg",
                 (cX, int(cY + height * 0.3)),
@@ -194,12 +175,10 @@ def calculate_angle(y, z):
     return angle
 
 def calculate_rectangle_points(image, cX, cY, height, width, angle_rot, epsilonX=4, epsilonY=3):
-    # TODO: maybe there is a better way to implement this 
     if angle_rot < -45:
         angle_rot = -(angle_rot + 90) 
     elif angle_rot >= 45 and angle_rot <= 90:
         angle_rot -= 90
-    #     print(f"New angle_rot is {angle_rot}")
     angle_rot_rad = math.radians(angle_rot)  # Convert angle from degrees to radians
 
     def rotate_point(x, y, cx, cy, angle):
@@ -213,7 +192,6 @@ def calculate_rectangle_points(image, cX, cY, height, width, angle_rot, epsilonX
         # Check image resolution
         image_size = image.shape
         IMAGE_HEIGHT, IMAGE_WIDTH = image_size[0], image_size[1]
-        # print(f"RGB image width is: {IMAGE_WIDTH}. height: {IMAGE_HEIGHT}")
         
         adjusted_points = []
         for x, y in points:
@@ -246,12 +224,6 @@ def calculate_rectangle_points(image, cX, cY, height, width, angle_rot, epsilonX
 
     # Assign rotated points back to meaningful variable names
     (lt, rt, lb, rb, top, bottom, left, right) = adjusted_points
-
-    # return {
-    #     "center": center,
-    #     "corners": {"lt": lt, "rt": rt, "lb": lb, "rb": rb},
-    #     "midpoints": {"top": top, "bottom": bottom, "left": left, "right": right}
-    # }
     
     return [center, top, bottom, left, right, lt, rt, lb, rb]
 
@@ -261,7 +233,6 @@ def remove_values_excluding_outliers(values, threshold):
         for value in values:
             if abs(value - median_value) > threshold:
                 values.remove(value)
-                # print(f"Excluded {value} as it's too far from the median.")
     elif len(values) == 2:
         if max(values) - min(values) > threshold:
             values = []

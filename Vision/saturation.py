@@ -1,8 +1,8 @@
-import cv2 # type: ignore
-import numpy as np # type: ignore
-from scipy.signal import find_peaks # type: ignore
+import cv2
+import numpy as np
+from scipy.signal import find_peaks
 
-from Uleh.utils import smooth_histogram_with_gaussian
+from Vision.utils import smooth_histogram_with_gaussian
 
 # use this function for a blue and red obstacle
 def calculate_saturation_threshold(image, saturation_range, color_name, sat_offset=0):
@@ -15,13 +15,7 @@ def calculate_saturation_threshold(image, saturation_range, color_name, sat_offs
     hist_sat_smoothed = smooth_histogram_with_gaussian(hist_sat, sigma=3)
     
     # Find an adaptive threshold for saturation
-    # Use this threshold for blue and red obstacle
     sat_threshold = np.argmin(hist_sat_smoothed[saturation_range[0]:saturation_range[1]]) + saturation_range[0]
-    # sat_threshold = calculate_sat_average(hist_sat_smoothed, saturation_range)
-      
-    # Debugging:
-    # print(f"Saturation avarage for {color_name}: {sat_threshold}")
-    # plot_histogram(hist_sat_smoothed, "saturation")
 
     return sat_threshold
 
@@ -46,14 +40,8 @@ def calculate_saturation_threshold_green(image, saturation_range, sat_offset=20)
     # plot_histogram(inverted_histogram, "saturation")
     
     if peaks.size > 0:
-        #TODO: remove hardcoding saturation for green
-        # print("Saturation value from PEAK for GREEN: ", peaks[0] + saturation_range[0])
         return peaks[0] + saturation_range[0] + sat_offset
-        
-        # print("Saturation value for green: ", 70)
-        # return 100
+
     else:
-        # print("Defaut saturation value from PEAK for GREEN returned: 70")
         return 100
     
-    # return 70
