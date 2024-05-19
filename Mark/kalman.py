@@ -11,12 +11,9 @@ class KalmanFilter:
         self.R = np.diag([0.00001, 0.00001, 0.00001])  # sigma x, y, a
         self.Q_obstacles = np.diag([0.05, np.deg2rad(0.5), 0.0001])  # sigma r, phi, color
 
-        # acceptable mahalanobis distancex
+        # acceptable mahalanobis distance
         self.alpha = 4
         self.alpha_for_green = 0.4
-
-
-
 
     def Fx(self):
         total_state_length = 3 + 3 * len(self.env.obstacles)  # 3 for robot state, 3 per obstacle
@@ -38,7 +35,7 @@ class KalmanFilter:
         # Jacobian matrix G for state transition
         G = np.zeros((3, 3))
 
-        # using mu_t-1 for this
+        # Alternate taylor expansion
         # G[0, 2] = -distance_travelled * np.sin(theta + dtheta / 2)
         # G[1, 2] = distance_travelled * np.cos(theta + dtheta / 2)
         G[0, 2] = -dx * np.sin(theta) - dy * np.cos(theta)
@@ -66,7 +63,6 @@ class KalmanFilter:
 
         sqrt_q = np.sqrt(q)
         angle = np.arctan2(delta[1, 0], delta[0, 0]) - self.env.robot.a
-        # angle = np.arctan2(np.sin(angle), np.cos(angle))
         current_color = self.mu[obstacle_idx + 2]
 
         z_hat = np.vstack((sqrt_q, angle, current_color)).reshape(3, 1)
@@ -130,8 +126,6 @@ class KalmanFilter:
             else:
                 self.env.obstacles_measurement_count[current_obstacle] += 1
 
-
-
             # Update the state and covariance matrices
             delta = np.array([[self.mu[closest_idx] - self.env.robot.x],
                               [self.mu[closest_idx + 1] - self.env.robot.y]])
@@ -139,7 +133,6 @@ class KalmanFilter:
 
             sqrt_q = np.sqrt(q)
             angle = np.arctan2(delta[1, 0], delta[0, 0]) - self.env.robot.a
-            # angle = np.arctan2(np.sin(angle), np.cos(angle))
 
             current_color = self.mu[closest_idx + 2]
             z_hat = np.vstack((sqrt_q, angle, current_color)).reshape(3, 1)
@@ -149,7 +142,6 @@ class KalmanFilter:
 
             z_delta = z_actual - z_hat
             # print("Difference of measurement from current data for:", measured_obstacle)
-            # print("Is: (x, y, color)", z_delta.T)
             z_delta[1] = np.arctan2(np.sin(z_delta[1]), np.cos(z_delta[1]))
 
             H = self.calculate_jacobian(delta, q, closest_idx)

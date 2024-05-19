@@ -5,18 +5,14 @@ import cv2
 
 
 class RobotVisualization:
-    def __init__(self, env, path_execution, kalman_filter, screen_size, window_percentage=0.8, margin=0.5):
+    def __init__(self, screen_size, base_size, env, path_execution, kalman_filter, window_percentage=0.8, margin=0.5):
         self.env = env
         self.path_execution = path_execution
         self.kalman_filter = kalman_filter
         self.margin = margin
 
         pygame.init()
-        # self.base_size = (3840, 3840) # 4K square
-        # self.base_size = (1080, 1080)
-        # self.base_size = (500, 500)
-        self.base_size = (400, 400)
-        # self.base_size = (250, 250)
+        self.base_size = base_size
         self.screen = pygame.display.set_mode(self.base_size)
         self.clock = pygame.time.Clock()
 
@@ -53,13 +49,15 @@ class RobotVisualization:
                            fy=self.scale_height, interpolation=cv2.INTER_AREA)
         return image
 
-    def draw_everything(self):
-        # self.draw_grid()
+    def draw_everything(self, turtlebot=False):
         self.find_limits()
-        self.screen.fill((255,255,255))
-        # self.initialize_grid()
-        # if self.grid_surface:
-            # self.screen.blit(self.grid_surface, (0, 0))
+
+        if turtlebot:
+            self.screen.fill((255, 255, 255))
+        else:
+            self.initialize_grid()
+            if self.grid_surface:
+                self.screen.blit(self.grid_surface, (0, 0))
 
         for hidden_obstacle in self.env.hidden_obstacles:
             self.draw_obstacle(hidden_obstacle, 0, True)
@@ -76,7 +74,8 @@ class RobotVisualization:
             self.draw_checkpoint(checkpoint)
 
         self.draw_robot(self.env.robot)
-        # self.draw_robot(self.env.real_robot, True)
+        if not turtlebot:
+            self.draw_robot(self.env.real_robot, True)
 
     def draw_path(self, path):
         updated_rects = []  # List to store rectangles that need to be updated
@@ -159,12 +158,6 @@ class RobotVisualization:
         # Create a new surface to draw the unrotated ellipse
         ellipse_surface = pygame.Surface((int(width_pixels * 2), int(height_pixels * 2)), pygame.SRCALPHA)
 
-        # Draw anti-aliased ellipse
-        # pygame.gfxdraw.aaellipse(ellipse_surface, ellipse_center[0], ellipse_center[1],
-        #                          int(width_pixels), int(height_pixels), color)
-        # pygame.gfxdraw.aaellipse(ellipse_surface, ellipse_center[0], ellipse_center[1],
-        #                          int(width_pixels) + 1, int(height_pixels) + 1, color)
-
         pygame.draw.ellipse(ellipse_surface, color, (0, 0, width_pixels * 2, height_pixels * 2), 1)
 
         # Rotate the surface
@@ -233,11 +226,6 @@ class RobotVisualization:
         obstacle_pos = self.get_coordinates_in_pixels(obstacle.x, obstacle.y)
         obstacle_radius_pixels = self.get_length_in_pixels(obstacle.radius)
 
-        # pygame.gfxdraw.aacircle(self.screen, obstacle_pos[0], obstacle_pos[1],
-        #                         obstacle_radius_pixels, color)
-        # pygame.gfxdraw.filled_circle(self.screen, obstacle_pos[0], obstacle_pos[1],
-        #                              obstacle_radius_pixels, color)
-
         pygame.draw.circle(self.screen, color, obstacle_pos, obstacle_radius_pixels)
 
         if not hidden:
@@ -250,12 +238,6 @@ class RobotVisualization:
         checkpoint_pos = self.get_coordinates_in_pixels(checkpoint.x, checkpoint.y)
         checkpoint_radius = self.get_length_in_pixels(0.015)
         pygame.draw.circle(self.screen, (0, 0, 255), checkpoint_pos, checkpoint_radius)
-        # pygame.gfxdraw.aacircle(self.screen,
-        #                         *self.get_coordinates_in_pixels(checkpoint.x, checkpoint.y),
-        #                         self.get_length_in_pixels(0.015), (0, 0, 255))
-        # pygame.gfxdraw.filled_circle(self.screen,
-        #                              *self.get_coordinates_in_pixels(checkpoint.x, checkpoint.y),
-        #                              self.get_length_in_pixels(0.015), (0, 0, 255))
 
     def draw_arrow(self, node, color):
         arrow_size = self.get_length_in_pixels(0.1)  # cm
@@ -293,29 +275,6 @@ class RobotVisualization:
 
     def get_length_in_pixels(self, length):
         return int(self.base_size[0] * (length / self.range))
-
-    # def find_limits(self):
-    #     # Collect all x and y coordinates from robots, checkpoints, and obstacles
-    #     all_x = [self.env.robot.x] + \
-    #             [ob.x for ob in self.env.obstacles] + \
-    #             [cp.x for cp in self.env.checkpoints] + \
-    #             [node.x for node in self.path_execution.path]
-    #
-    #     all_y = [self.env.robot.y] + \
-    #             [ob.y for ob in self.env.obstacles] + \
-    #             [cp.y for cp in self.env.checkpoints] + \
-    #             [node.y for node in self.path_execution.path]
-    #
-    #     min_x, max_x = min(all_x), max(all_x)
-    #     min_y, max_y = min(all_y), max(all_y)
-    #     # Find the largest range to ensure a square aspect ratio
-    #     range_x = max_x - min_x
-    #     range_y = max_y - min_y
-    #     self.range = max(range_x, range_y) + self.margin
-    #     self.range = max(2, self.range)
-    #     # Calculate new min and max for both x and y to be centered
-    #     self.center_x = (max_x + min_x) / 2
-    #     self.center_y = (max_y + min_y) / 2
 
     def find_limits(self):
         # Collect all x and y coordinates from robots, checkpoints, and obstacles

@@ -12,18 +12,6 @@ class Robot:
         self.max_detection_range = 2  # m
         self.fov_angle = np.deg2rad(50)
 
-        # self.linear_acceleration = 0.4  # m/s^2
-        # self.max_linear_speed = 0.2  # m/s
-        # self.max_angular_speed = np.pi / 8  # rad/s
-        # self.min_angular_speed = np.pi / 16
-        # self.min_linear_speed = 0.05
-
-        # self.linear_acceleration = 0.7  # m/s^2
-        # self.max_linear_speed = 1  # m/s
-        # self.max_angular_speed = np.pi / 2  # rad/s
-        # self.min_angular_speed = np.pi / 8
-        # self.min_linear_speed = 0.00
-
         self.linear_acceleration = 0.4  # m/s^2
         self.max_linear_speed = 0.4  # m/s
         self.max_angular_speed = np.pi / 4  # rad/s
@@ -32,7 +20,6 @@ class Robot:
 
         self.distance_allowance = 0.03
         self.path_update_distance = 0.03
-        # self.angular_speed_distance_allowance = 0.06
         self.angle_allowance = np.deg2rad(1)
         self.obstacle_clearance = 0.045  # m
 
@@ -66,13 +53,13 @@ class Obstacle:
 
 
 class Environment:
-    def __init__(self, robot, real_robot, checkpoints, obstacles, hidden_obstacles):
+    def __init__(self, robot, checkpoints, obstacles, hidden_obstacles):
         self.robot: Robot = robot
         self.checkpoints: list[Checkpoint] = checkpoints
         self.obstacles: list[Obstacle] = obstacles
         self.obstacles_measurement_count: dict[Obstacle, int] = {}
         self.primary_checkpoints_idxs: list[int] = []
-        self.real_robot: Robot = real_robot
+        self.real_robot: Robot = Robot(robot.x, robot.y, robot.a)
 
         self.measurements_to_be_sure = 3
 
@@ -83,15 +70,6 @@ class Environment:
         self.hidden_obstacles: set[Obstacle] = hidden_obstacles
 
     def generate_checkpoints_for_exploration(self, main_checkpoint: Checkpoint, side: int):
-        # move_back_distance = 0.1
-        # move_back = Checkpoint(main_checkpoint.x - move_back_distance * np.cos(main_checkpoint.a),
-        #                        main_checkpoint.y - move_back_distance * np.sin(main_checkpoint.a),
-        #                        main_checkpoint.a - np.pi)
-        # move_back.a = np.arctan2(np.sin(move_back.a), np.cos(move_back.a))
-
-        # turn_back = Checkpoint(main_checkpoint.x, main_checkpoint.y, main_checkpoint.a - np.pi)
-        # turn_back.a = np.arctan2(np.sin(turn_back.a), np.cos(turn_back.a))
-
         turn_to_the_side = Checkpoint(main_checkpoint.x, main_checkpoint.y, main_checkpoint.a - side * np.pi / 2)
         turn_to_the_side.a = np.arctan2(np.sin(turn_to_the_side.a), np.cos(turn_to_the_side.a))
 
@@ -102,16 +80,8 @@ class Environment:
         look_around_right_one = Checkpoint(move_forward.x, move_forward.y, move_forward.a - self.look_around_angle)
         look_around_right_one.a = np.arctan2(np.sin(look_around_right_one.a), np.cos(look_around_right_one.a))
 
-        # look_around_right_two = Checkpoint(move_forward.x, move_forward.y, move_forward.a - self.look_around_angle * 2)
-        # look_around_right_two.a = np.arctan2(np.sin(look_around_right_two.a), np.cos(look_around_right_two.a))
-
-
         look_around_left_one = Checkpoint(move_forward.x, move_forward.y, move_forward.a + self.look_around_angle)
         look_around_left_one.a = np.arctan2(np.sin(look_around_left_one.a), np.cos(look_around_left_one.a))
-
-        # look_around_left_two = Checkpoint(move_forward.x, move_forward.y, move_forward.a + self.look_around_angle * 2)
-        # look_around_left_two.a = np.arctan2(np.sin(look_around_left_two.a), np.cos(look_around_left_two.a))
-
 
         return [turn_to_the_side, move_forward, look_around_right_one, look_around_left_one, move_forward]
 
@@ -222,7 +192,7 @@ class Environment:
         # Update the robot's position and orientation with the noisy values
         self.real_robot.x += measured_delta_x
         self.real_robot.y += measured_delta_y
-        self.real_robot.a += measured_delta_theta * 1.0989
+        self.real_robot.a += measured_delta_theta
 
         # Normalize the angle
         self.real_robot.a = np.arctan2(np.sin(self.real_robot.a), np.cos(self.real_robot.a))

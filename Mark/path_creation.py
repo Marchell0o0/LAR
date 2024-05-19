@@ -42,12 +42,6 @@ class PathCreation:
 
         path = self.smoother(path)
 
-        # TODO: Could work better with this
-        # path = self.simplify_path(path)
-        # path = self.inject_nodes(path)
-        # path = self.smoother(path)
-
-        # self.compute_path_metrics(path)
         print("---------------------------------------------")
         return path
 

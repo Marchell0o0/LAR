@@ -82,17 +82,6 @@ class PathExecution:
         # Set the lookahead point
         self.lookahead_point = (self.path[idx].x, self.path[idx].y)
 
-    def get_closest_node_curvature(self):
-        min_dist = 100
-        closest_node = self.path[0]
-        for node in self.path:
-            dist = distance(node, self.env.robot)
-            if dist < min_dist:
-                min_dist = dist
-                closest_node = node
-
-        return closest_node.curvature
-
     def get_to_desired_speed(self, speed):
         if self.previous_move_time == 0:
             self.previous_move_time = time.time()
@@ -109,7 +98,7 @@ class PathExecution:
                     self.env.checkpoints[self.current_checkpoint_idx]) < self.env.robot.distance_allowance:
             angle_difference = self.env.robot.a - self.env.checkpoints[self.current_checkpoint_idx].a
             angle_difference = np.arctan2(np.sin(angle_difference), np.cos(angle_difference))
-            # print("Distance to the checkpoint is small enough")
+            self.get_to_desired_speed(0)
             # Calculate the angular speed based on how close the robot is to the desired angle
             if abs(angle_difference) > self.env.robot.angle_allowance:
                 # Normalize the difference within the range of 0 to 1
@@ -184,12 +173,13 @@ class PathExecution:
                     print("Couldn't generate a path to the checkpoint")
                     self.get_to_desired_speed(0)
                     return (self.current_speed, 0)
+                else:
+                    return self.move_through_path()
                 
             else:
                 if not self.env.found_finish and self.counter > 0:
                     print("Adding a new checkpoint for exploration")
                     exploration_distance = 0.6
-                    # self.get_to_desired_speed(0)
                     new_x = self.env.robot.x + np.cos(self.env.robot.a) * exploration_distance
                     new_y = self.env.robot.y + np.sin(self.env.robot.a) * exploration_distance
                     new_a = float(self.env.robot.a)
@@ -206,5 +196,5 @@ class PathExecution:
                     self.get_to_desired_speed(0)
                     self.counter += 1
                 return (self.current_speed, 0)
-        # Here the path is guaranteed to be non-empty
-        return self.move_through_path()
+        else:
+            return self.move_through_path()

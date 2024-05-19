@@ -80,7 +80,8 @@ class AStar:
                 return True
         return False
 
-    def reconstruct_path(self, came_from, start, goal):
+    @staticmethod
+    def reconstruct_path(came_from, start, goal):
         current = goal
         path = []
         while current != start:
@@ -91,16 +92,6 @@ class AStar:
         return [Node(x=node.x / 100, y=node.y / 100) for node in path]
 
     def search(self, actual_goal):
-        """ Searches for a path using A*
-
-
-        Args:
-            actual_goal (Checkpoint): The actual coordinates of the goal in m
-
-        Returns:
-            list[Node]: First node is a node with the coordinates of the robot,
-                the last node is always actual_goal
-        """
         start = Node(int(self.env.robot.x * 100), int(self.env.robot.y * 100))
         goal = Node(int(actual_goal.x * 100), int(actual_goal.y * 100))
         frontier = PriorityQueue(goal)
