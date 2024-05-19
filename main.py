@@ -9,8 +9,8 @@ from Mark.path_execution import PathExecution
 from Mark.path_creation import PathCreation
 from Mark.kalman import KalmanFilter
 
-from Uleh.rectangle import RectangleProcessor
-from Uleh.color import ColorSettings, ColorQueue
+from Vision.rectangle import RectangleProcessor
+from Vision.color import ColorSettings, ColorQueue
 
 # Running pygame without the display to resolve a dependency with OpenGL
 import pygame
