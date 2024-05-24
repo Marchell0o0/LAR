@@ -29,6 +29,8 @@ class TurtlebotApp:
         self.kalman_filter = KalmanFilter(self.env)
 
         if self.visualization:
+            # screen_dimensions = (1080, 1080)
+            # rendering_size = (3000, 3000)
             screen_dimensions = (500, 500)
             rendering_size = (500, 500)
             self.vis = RobotVisualization(screen_dimensions, rendering_size, self.env, self.path_execution, self.kalman_filter)
@@ -113,7 +115,7 @@ class TurtlebotApp:
         self.env.update_checkpoints(self.path_execution.current_checkpoint_idx)
         self.path_execution.update_path()
 
-    def simulation_routine(self, dt):
+    def simulation_routine(self, dt, counter):
         next_move = self.path_execution.get_current_move()
         odometry_change = self.env.simulate_movement(next_move, dt)
 
@@ -136,9 +138,9 @@ class TurtlebotApp:
                 running = False
 
             if self.visualization:
-                if counter % 5 == 0:
+                if (counter % 5 == 0 and self.turtlebot) or not self.turtlebot:
                     self.vis.draw_everything(self.turtlebot)
-                    self.vis.show_cv2()
+                    self.vis.show_cv2(counter)
                     self.vis.clock.tick(120)
 
             if self.turtlebot:
@@ -149,8 +151,9 @@ class TurtlebotApp:
                 if previous_time == 0:
                     previous_time = time.time()
                 dt = time.time() - previous_time
-                if dt > 0.05:
-                    self.simulation_routine(dt)
+                # if dt > 0.06:
+                if dt > 0.01:
+                    self.simulation_routine(dt, counter)
                     previous_time = time.time()
 
             counter += 1
@@ -166,17 +169,47 @@ def main():
 
     # Example environment for simulation testing
     if not turtlebot:
+        # env = Environment(Robot(0, 0, 0),
+        #                   [
+        #                       # Checkpoint(0, 0, angle) for angle in np.arange(0, 5 * np.pi / 2, np.pi / 2)
+        #                   ],
+        #                   [],
+        #                   [
+        #                    Obstacle(1, 0.05, 0),
+        #                    Obstacle(1, -0.05, 1),
+        #                    Obstacle(0.9, 0.7, 2),
+        #                    Obstacle(1.45, 1.28, 0),
+        #                    Obstacle(1.50, 1.25, 1),
+        #                    Obstacle(0, 1.60, 2),
+        #                    Obstacle(0.05, 1.65, 2)
+        #                    ])
         env = Environment(Robot(0, 0, 0),
-                          [Checkpoint(0, 0, angle) for angle in np.arange(0, 5 * np.pi / 2, np.pi / 2)],
+                          [
+                              # Checkpoint(0, 0, angle) for angle in np.arange(0, 5 * np.pi / 2, np.pi / 2)
+                              Checkpoint(2, 0,  0),
+                              # Checkpoint(0, 0, np.pi),
+                              # Checkpoint(2, 0, 0),
+                              # Checkpoint(0, 0, np.pi),
+                              # Checkpoint(2, 0,  0),
+                              # Checkpoint(0, 0, np.pi),
+                              # Checkpoint(2, 0,  0),
+                              # Checkpoint(0, 0, np.pi),
+                              # Checkpoint(2, 0,  0),
+                              # Checkpoint(0, 0, np.pi),
+                              # Checkpoint(2, 0,  0),
+                              # Checkpoint(0, 0, np.pi),
+                              # Checkpoint(2, 0,  0),
+                              # Checkpoint(0, 0, np.pi),
+                          ],
                           [],
                           [
-                          #  Obstacle(1, 0.05, 0),
-                          #  Obstacle(1, -0.05, 1),
-                          #  Obstacle(0.5, 0.6, 2),
-                          #  Obstacle(1.45, 1.28, 0),
-                          #  Obstacle(1.50, 1.25, 1),
-                          #  Obstacle(0, 1.60, 2),
-                          #  Obstacle(0.05, 1.65, 2)
+                           Obstacle(1, 0.05, 0),
+                           Obstacle(1, -0.05, 1),
+                           Obstacle(0.50, -0.3, 2),
+                           Obstacle(1.50, -0.3, 2),
+                           Obstacle(0.50, 0.3, 2),
+                           Obstacle(1.50, 0.3, 2),
+
                            ])
     else:
         env = Environment(Robot(0, 0, 0),

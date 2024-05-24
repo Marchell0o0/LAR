@@ -7,8 +7,6 @@ class Node:
     def __init__(self, x, y):
         self.x = x
         self.y = y
-        # self.distance = 0
-        self.curvature = 0
 
     def __lt__(self, other):
         return (self.x, self.y) < (other.x, other.y)
@@ -23,7 +21,10 @@ class Node:
 
     @property
     def __str__(self) -> str:
-        return f"Node: ({self.x:.4f},{self.y:.4f}), curvature:{self.curvature:.4f}"
+        return f"Node: ({self.x:.4f},{self.y:.4f})"
+
+    def __repr__(self) -> str:
+        return f"Node({self.x}, {self.y})"
 
 
 def distance(point1: Node, point2: Node):
@@ -60,7 +61,7 @@ class AStar:
         return distance(node, goal)
 
     def get_neighbors(self, node):
-        step_size = 5
+        step_size = 3
         directions = [(-step_size, 0), (step_size, 0), (0, -step_size), (0, step_size)]
         result = []
 

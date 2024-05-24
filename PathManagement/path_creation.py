@@ -1,7 +1,6 @@
 from PathManagement.astar import AStar, Node
 import numpy as np
-import time
-
+from math import comb
 
 def distance(point1: Node, point2: Node):
     return np.sqrt((point1.x - point2.x) ** 2 + (point1.y - point2.y) ** 2)
@@ -11,37 +10,23 @@ class PathCreation:
     def __init__(self, env) -> None:
         self.env = env
         self.a_star = AStar(env)
-        self.node_frequency_on_injection = 0.02
-        self.smoother_weight_smooth = 0.9
-        self.smoother_weight_data = 1 - self.smoother_weight_smooth
-        self.smoother_tolerance = 0.001
 
     def create_path(self, robot, goal_checkpoint):
         print("--------------- Creating path ---------------")
-        start_time = time.time()
+        # start_time = time.time()
         path = self.initialize_path(robot, goal_checkpoint)
+        # init_time = time.time() - start_time
         if not path:
             return path
 
         path[0] = Node(robot.x, robot.y)
         path[-1] = goal_checkpoint
 
-        init_time = time.time() - start_time
-
-        start_time = time.time()
-        path = self.simplify_path(path)
-        simplify_time = time.time() - start_time
-
-        start_time = time.time()
-        path = self.inject_nodes(path)
-        inject_time = time.time() - start_time
-
-        # print(f"Time to initialize path: {init_time:.4f} seconds")
-        # print(f"Time to simplify path: {simplify_time:.4f} seconds")
-        # print(f"Time to inject nodes: {inject_time:.4f} seconds")
-
-        path = self.smoother(path)
-
+        path = self.simplify_path(path, 1, 'start')
+        path = self.inject_nodes(path, 0.05, False)
+        path = self.simplify_path(path, 1, 'end')
+        path = self.inject_nodes(path, 0.02, True)
+        path = self.bezier_curve_interpolation(path, 0.02)
         print("---------------------------------------------")
         return path
 
@@ -62,30 +47,57 @@ class PathCreation:
         print("NOT FOUND")
         return path
 
-    def simplify_path(self, path):
+    def simplify_path(self, path, threshold, start_side='start'):
         if len(path) == 2:
             return path
-        simplified_path = [path[0]]  # Start with the first point
-        i = 0
-        while i < len(path) - 1:
-            j = len(path) - 1
-            while j > i + 1:
-                if self.straight_path_exists(path[i], path[j]):
-                    # Found a direct line to a further point
-                    i = j
-                    break
-                j -= 1
-            simplified_path.append(path[i])
-            i += 1
 
-        # Ensure the last point is included
+        simplified_path = []
+
+        if start_side == 'start':
+            simplified_path = [path[0]]  # Start with the first point
+            i = 0
+            while i < len(path) - 1:
+                j = len(path) - 1
+                while j > i + 1:
+                    if self.straight_path_exists(path[i], path[j]):
+                        if distance(path[i], path[j]) <= threshold:
+                            # Found a direct line to a further point within the threshold
+                            i = j
+                            break
+                    j -= 1
+                simplified_path.append(path[i])
+                i += 1
+        elif start_side == 'end':
+            simplified_path = [path[-1]]  # Start with the last point
+            i = len(path) - 1
+            while i > 0:
+                j = 0
+                while j < i - 1:
+                    if self.straight_path_exists(path[i], path[j]):
+                        if distance(path[i], path[j]) <= threshold:
+                            # Found a direct line to a further point within the threshold
+                            i = j
+                            break
+                    j += 1
+                simplified_path.append(path[i])
+                i -= 1
+
+            # Reverse the path to maintain the correct order from start to end
+            simplified_path.reverse()
+
+        # Ensure the last point is included if starting from the beginning
         if simplified_path[-1] != path[-1]:
             simplified_path.append(path[-1])
 
+        # Ensure the first point is included if starting from the end
+        if simplified_path[0] != path[0]:
+            simplified_path.insert(0, path[0])
+
         return simplified_path
 
-    def inject_nodes(self, path):
-        new_path = []
+    @staticmethod
+    def inject_nodes(path, frequency, add_more=False):
+        new_path = [path[0]]
 
         for i in range(len(path) - 1):
             start_node = path[i]
@@ -93,70 +105,54 @@ class PathCreation:
             segment_length = distance(start_node, end_node)
 
             # Calculate number of interpolated points needed
-            num_points = int(segment_length // self.node_frequency_on_injection)
-
+            num_points = int(segment_length // frequency)
             # Linear interpolation between start_node and end_node
             for j in range(num_points):
                 t = j / num_points
+                if j == 0 and i == 0:
+                    continue
                 interpolated_x = start_node.x + t * (end_node.x - start_node.x)
                 interpolated_y = start_node.y + t * (end_node.y - start_node.y)
                 new_path.append(Node(interpolated_x, interpolated_y))
 
             # Add the original end_node to the path
             new_path.append(end_node)
-
-        if len(new_path) >= 2:
+        if add_more and len(new_path) >= 2:
             projection_angle = np.arctan2(new_path[-1].y - new_path[-2].y, new_path[-1].x - new_path[-2].x)
-            new_path.append(Node(new_path[-1].x + self.node_frequency_on_injection * np.cos(projection_angle),
-                                new_path[-1].y + self.node_frequency_on_injection * np.sin(projection_angle)))
+            new_path.append(Node(new_path[-1].x + frequency * np.cos(projection_angle),
+                                new_path[-1].y + frequency * np.sin(projection_angle)))
 
         return new_path
 
-    def smoother(self, path):
-        # Create a deep copy of the path to avoid modifying the original
-        new_path = [Node(node.x, node.y) for node in path]
-        tolerance = self.smoother_tolerance
-        weight_data = self.smoother_weight_data
-        weight_smooth = self.smoother_weight_smooth
 
-        change = tolerance
-        while change >= tolerance:
-            change = 0.0
-            # Iterate through each node (skipping the first and last)
-            for i in range(1, len(path) - 1):
-                # Smoothing for x coordinate
-                original_x = new_path[i].x
-                new_path[i].x += (
-                        weight_data * (path[i].x - new_path[i].x)
-                        + weight_smooth * (new_path[i - 1].x + new_path[i + 1].x - 2.0 * new_path[i].x)
-                )
-                change += abs(original_x - new_path[i].x)
+    @staticmethod
+    def calculate_path_length(path):
+        length = 0.0
+        for i in range(1, len(path)):
+            length += np.sqrt((path[i].x - path[i - 1].x) ** 2 + (path[i].y - path[i - 1].y) ** 2)
+        return length
 
-                # Smoothing for y coordinate
-                original_y = new_path[i].y
-                new_path[i].y += (
-                        weight_data * (path[i].y - new_path[i].y)
-                        + weight_smooth * (new_path[i - 1].y + new_path[i + 1].y - 2.0 * new_path[i].y)
-                )
-                change += abs(original_y - new_path[i].y)
+    def bezier_curve_interpolation(self, path, frequency):
+        def bezier_curve(control_points, num_points):
+            t = np.linspace(0, 1, num_points)
+            n = len(control_points) - 1
+            curve = np.zeros((num_points, 2))
+            for i in range(num_points):
+                point = np.zeros(2)
+                for k in range(n + 1):
+                    binomial_coefficients = comb(n, k)
+                    term = binomial_coefficients * (t[i] ** k) * ((1 - t[i]) ** (n - k)) * np.array(
+                        [control_points[k].x, control_points[k].y])
+                    point += term.reshape(2)
+                curve[i] = point
+            return [Node(x, y) for x, y in curve]
 
-        return new_path
+        total_length = self.calculate_path_length(path)
+        num_points = int(total_length // frequency)
 
-    def compute_path_metrics(self, path):
-        def curvature(node1, node2, node3):
-            a = distance(node1, node2)
-            b = distance(node2, node3)
-            c = distance(node1, node3)
-            s = (a + b + c) / 2  # Semi-perimeter
-            area = np.sqrt(max(0, s * (s - a) * (s - b) * (s - c)))
-            if area == 0:
-                return 0
-            return 4 * area / (a * b * c)
+        smooth_path = bezier_curve(path, num_points)
+        return smooth_path
 
-        # for node in path:
-        # print(node)
-        for i in range(1, len(path) - 1):
-            path[i].curvature = curvature(path[i - 1], path[i], path[i + 1])
 
     def straight_path_exists(self, start, goal) -> bool:
         dx = goal.x - start.x

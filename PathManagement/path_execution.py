@@ -31,17 +31,19 @@ class PathExecution:
     def update_path(self):
         if not self.path:
             return
-        if distance(self.path[-1],
-                    self.env.checkpoints[self.current_checkpoint_idx]) > self.env.robot.path_update_distance:
-            self.path = []
-            print("Checkpoint is too far away from the path end")
-            return
+        min_dist = float('inf')
         for node in self.path:
             for obstacle in self.env.obstacles:
                 allowed_radius = obstacle.radius + self.env.robot.radius + self.env.robot.obstacle_clearance
                 if distance(node, obstacle) < allowed_radius - 0.05:  # ease up to 5 cm
                     self.path = []
                     return
+            distance_to_checkpoint = distance(node, self.env.checkpoints[self.current_checkpoint_idx])
+            min_dist = min(min_dist, distance_to_checkpoint)
+
+        if min_dist > self.env.robot.path_update_distance:
+            self.path = []
+            print("Checkpoint is too far away from the path")
 
     def update_lookahead_point(self):
         min_dist = float('inf')
@@ -55,11 +57,11 @@ class PathExecution:
                 self.distance_to_path = dist
         
         # Define coefficients for the interpolation
-        interpolation_power = 1 / 5
+        interpolation_power = 1 / 15
         a = ((self.min_lookahead_distance - self.max_lookahead_distance)
              / (np.pi / 2) ** interpolation_power)
         d = self.max_lookahead_distance
-
+        counter = 0
         for i in range(idx + 1, len(self.path)):
             dist = distance(self.env.robot, self.path[i])
             if dist < self.min_lookahead_distance:
@@ -73,12 +75,21 @@ class PathExecution:
             angle_difference = np.arctan2(dy, dx) - self.env.robot.a
             angle_difference = np.arctan2(np.sin(angle_difference), np.cos(angle_difference))
 
-            # Calculate the lookahead distance using cubic interpolation
-            probable_lookahead = a * abs(angle_difference) ** interpolation_power + d
+            if abs(angle_difference) < 0.01:
+                probable_lookahead = self.max_lookahead_distance
+            elif min_dist > 0.1 or (min_dist > 0.01 and abs(angle_difference) > np.pi * 0.5):
+                probable_lookahead = self.min_lookahead_distance
+                # print("Setting lookahead distance to minimal")
+            else:
+                probable_lookahead = a * abs(angle_difference) ** interpolation_power + d
 
             if dist < probable_lookahead:
                 idx = i
                 self.current_lookahead_distance = dist
+                counter += 1
+            else:
+                if counter > 1:
+                    break
         # Set the lookahead point
         self.lookahead_point = (self.path[idx].x, self.path[idx].y)
 
@@ -141,15 +152,17 @@ class PathExecution:
 
         lookahead_curvature = (2 * x) / (self.current_lookahead_distance ** 2)
 
-        if abs(between_angle) > np.pi / 2:
+        if abs(between_angle) > np.pi /2:
             linear_speed = 0
-        elif abs(between_angle) > np.pi / 8 and self.distance_to_path:
+        elif abs(between_angle) > np.pi / 8 and self.distance_to_path > 0.2:
             linear_speed = 0
+        elif self.current_lookahead_distance < self.min_lookahead_distance:
+            linear_speed = self.env.robot.min_linear_speed
         else:
-            linear_speed_scale = ((np.pi / 2) - abs(between_angle)) / \
-                                 (np.pi / 2) * self.current_lookahead_distance / self.max_lookahead_distance
-            linear_speed = self.env.robot.max_linear_speed * linear_speed_scale
-            linear_speed = max(self.env.robot.min_linear_speed, linear_speed)
+            power = 2
+            a = (self.env.robot.max_linear_speed - self.env.robot.min_linear_speed)/(self.max_lookahead_distance-self.min_lookahead_distance)
+            linear_speed = a*(self.current_lookahead_distance - self.min_lookahead_distance)**(1/power) + self.min_lookahead_distance
+            # linear_speed = max(self.env.robot.min_linear_speed, linear_speed)
 
         self.get_to_desired_speed(linear_speed)
 
