@@ -29,10 +29,12 @@ class TurtlebotApp:
         self.kalman_filter = KalmanFilter(self.env)
 
         if self.visualization:
-            # screen_dimensions = (1080, 1080)
-            # rendering_size = (3000, 3000)
-            screen_dimensions = (500, 500)
-            rendering_size = (500, 500)
+            if self.turtlebot:
+                screen_dimensions = (500, 500)
+                rendering_size = (500, 500)
+            else:
+                screen_dimensions = (800, 800)
+                rendering_size = (800, 800)
             self.vis = RobotVisualization(screen_dimensions, rendering_size, self.env, self.path_execution, self.kalman_filter)
 
         self.max_update_rate = 1000
@@ -164,6 +166,8 @@ class TurtlebotApp:
 
 
 def main():
+    # print(f"PID: {os.getpid()}")
+    # input("Press Enter to continue...")
     visualization = "-vis" in sys.argv
     turtlebot = "-turtlebot" in sys.argv
 
@@ -187,16 +191,16 @@ def main():
                           [
                               # Checkpoint(0, 0, angle) for angle in np.arange(0, 5 * np.pi / 2, np.pi / 2)
                               Checkpoint(2, 0,  0),
-                              # Checkpoint(0, 0, np.pi),
-                              # Checkpoint(2, 0, 0),
-                              # Checkpoint(0, 0, np.pi),
-                              # Checkpoint(2, 0,  0),
-                              # Checkpoint(0, 0, np.pi),
-                              # Checkpoint(2, 0,  0),
-                              # Checkpoint(0, 0, np.pi),
-                              # Checkpoint(2, 0,  0),
-                              # Checkpoint(0, 0, np.pi),
-                              # Checkpoint(2, 0,  0),
+                              Checkpoint(0, 0, np.pi),
+                              Checkpoint(2, 0, 0),
+                              Checkpoint(0, 0, np.pi),
+                              Checkpoint(2, 0,  0),
+                              Checkpoint(0, 0, np.pi),
+                              Checkpoint(2, 0,  0),
+                              Checkpoint(0, 0, np.pi),
+                              Checkpoint(2, 0,  0),
+                              Checkpoint(0, 0, np.pi),
+                              Checkpoint(2, 0,  0),
                               # Checkpoint(0, 0, np.pi),
                               # Checkpoint(2, 0,  0),
                               # Checkpoint(0, 0, np.pi),
@@ -205,10 +209,10 @@ def main():
                           [
                            Obstacle(1, 0.05, 0),
                            Obstacle(1, -0.05, 1),
-                           Obstacle(0.50, -0.3, 2),
-                           Obstacle(1.50, -0.3, 2),
-                           Obstacle(0.50, 0.3, 2),
-                           Obstacle(1.50, 0.3, 2),
+                           Obstacle(0.50, -0.35, 2),
+                           Obstacle(1.50, -0.35, 2),
+                           Obstacle(0.50, 0.35, 2),
+                           Obstacle(1.50, 0.35, 2),
 
                            ])
     else:

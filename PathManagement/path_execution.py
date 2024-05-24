@@ -57,7 +57,7 @@ class PathExecution:
                 self.distance_to_path = dist
         
         # Define coefficients for the interpolation
-        interpolation_power = 1 / 15
+        interpolation_power = 1 / 20
         a = ((self.min_lookahead_distance - self.max_lookahead_distance)
              / (np.pi / 2) ** interpolation_power)
         d = self.max_lookahead_distance
@@ -75,13 +75,13 @@ class PathExecution:
             angle_difference = np.arctan2(dy, dx) - self.env.robot.a
             angle_difference = np.arctan2(np.sin(angle_difference), np.cos(angle_difference))
 
-            if abs(angle_difference) < 0.01:
+            offset = 0.01
+            if abs(angle_difference) < offset:
                 probable_lookahead = self.max_lookahead_distance
-            elif min_dist > 0.1 or (min_dist > 0.01 and abs(angle_difference) > np.pi * 0.5):
+            elif abs(angle_difference) > np.pi / 2 or min_dist > 0.1:
                 probable_lookahead = self.min_lookahead_distance
-                # print("Setting lookahead distance to minimal")
             else:
-                probable_lookahead = a * abs(angle_difference) ** interpolation_power + d
+                probable_lookahead = a * (abs(angle_difference)-offset) ** interpolation_power + d
 
             if dist < probable_lookahead:
                 idx = i

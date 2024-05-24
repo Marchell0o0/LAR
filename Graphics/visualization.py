@@ -47,8 +47,9 @@ class RobotVisualization:
         raw_str = pygame.image.tostring(self.screen, 'RGB')
         image = np.frombuffer(raw_str, dtype=np.uint8).reshape(self.base_size[1], self.base_size[0], 3)
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-        image = cv2.resize(image, None, fx=self.scale_width,
-                           fy=self.scale_height, interpolation=cv2.INTER_AREA)
+        if image.shape != self.screen_size:
+            image = cv2.resize(image, None, fx=self.scale_width,
+                            fy=self.scale_height, interpolation=cv2.INTER_AREA)
         return image
 
     def draw_everything(self, turtlebot=False):
