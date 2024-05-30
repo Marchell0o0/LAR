@@ -28,7 +28,7 @@ class Robot:
         self.path_update_distance = 0.02
         self.angle_allowance = np.deg2rad(1)
         # self.obstacle_clearance = 0.045  # m
-        self.obstacle_clearance = 0.06  # m
+        self.obstacle_clearance = 0.045  # m
 
         self.x = x
         self.y = y
@@ -115,6 +115,9 @@ class Environment:
         new_checkpoint = Checkpoint(center[0] - offset_distance * np.cos(checkpoint_angle),
                                     center[1] - offset_distance * np.sin(checkpoint_angle),
                                     checkpoint_angle)
+        safety_checkpoint = Checkpoint(center[0] - (offset_distance + 0.15) * np.cos(checkpoint_angle),
+                                    center[1] - (offset_distance + 0.15) * np.sin(checkpoint_angle),
+                                    checkpoint_angle)
 
         if not finish_node:
             additional_checkpoints = self.generate_checkpoints_for_exploration(new_checkpoint, np.sign(side))
@@ -128,6 +131,7 @@ class Environment:
             found = True
 
             if idx > current_checkpoint_idx - 4:
+                self.checkpoints[idx - 1] = safety_checkpoint
                 self.checkpoints[idx] = new_checkpoint
 
                 if finish_node:
@@ -139,11 +143,13 @@ class Environment:
 
         if self.found_finish and finish_node and not found:
             print("Adding new finish checkpoint")
+            self.checkpoints.append(safety_checkpoint)
             self.checkpoints.append(new_checkpoint)
             self.primary_checkpoints_idxs.append(len(self.checkpoints) - 1)
             return True
         elif not found and not self.found_finish:
             print("Adding new checkpoint")
+            self.checkpoints.append(safety_checkpoint)
             self.checkpoints.append(new_checkpoint)
             self.primary_checkpoints_idxs.append(len(self.checkpoints) - 1)
             if not finish_node:

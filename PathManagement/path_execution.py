@@ -35,7 +35,7 @@ class PathExecution:
         for node in self.path:
             for obstacle in self.env.obstacles:
                 allowed_radius = obstacle.radius + self.env.robot.radius + self.env.robot.obstacle_clearance
-                if distance(node, obstacle) < allowed_radius - 0.05:  # ease up to 5 cm
+                if distance(node, obstacle) < allowed_radius - 0.06:  # ease up to 5 cm
                     self.path = []
                     return
             distance_to_checkpoint = distance(node, self.env.checkpoints[self.current_checkpoint_idx])
@@ -196,35 +196,35 @@ class PathExecution:
                     return self.move_through_path()
                 
             else:
-                # if not self.env.found_finish and self.counter > 0:
-                #     print("Adding a new checkpoint for exploration")
-                #     exploration_distance = 0.3
-                #     while True:
-                #         new_checkpoint = self.make_exploration_checkpoint(exploration_distance)
-                #         allowed = True
-                #         for obstacle in self.env.obstacles:
-                #             if distance(obstacle, new_checkpoint) <= self.env.robot.radius + self.env.robot.obstacle_clearance + obstacle.radius:
-                #                 allowed = False
-                #                 break
+                if not self.env.found_finish and self.counter > 0:
+                    print("Adding a new checkpoint for exploration")
+                    exploration_distance = 0.3
+                    while True:
+                        new_checkpoint = self.make_exploration_checkpoint(exploration_distance)
+                        allowed = True
+                        for obstacle in self.env.obstacles:
+                            if distance(obstacle, new_checkpoint) <= self.env.robot.radius + self.env.robot.obstacle_clearance + obstacle.radius:
+                                allowed = False
+                                break
 
-                #         if allowed:
-                #             break
+                        if allowed:
+                            break
 
-                #         exploration_distance += 0.3
+                        exploration_distance += 0.3
 
-                #     turn_right = Checkpoint(new_checkpoint.x, new_checkpoint.y,
-                #                             new_checkpoint.a - self.env.look_around_angle)
-                #     turn_left = Checkpoint(new_checkpoint.x, new_checkpoint.y,
-                #                            new_checkpoint.a + self.env.look_around_angle)
-                #     self.env.checkpoints.append(new_checkpoint)
-                #     self.env.checkpoints.append(turn_right)
-                #     self.env.checkpoints.append(turn_left)
-                #     self.env.checkpoints.append(new_checkpoint)
+                    turn_right = Checkpoint(new_checkpoint.x, new_checkpoint.y,
+                                            new_checkpoint.a - self.env.look_around_angle)
+                    turn_left = Checkpoint(new_checkpoint.x, new_checkpoint.y,
+                                           new_checkpoint.a + self.env.look_around_angle)
+                    self.env.checkpoints.append(new_checkpoint)
+                    self.env.checkpoints.append(turn_right)
+                    self.env.checkpoints.append(turn_left)
+                    self.env.checkpoints.append(new_checkpoint)
 
-                #     self.counter = 0
-                # else:
-                #     self.get_to_desired_speed(0)
-                #     self.counter += 1
+                    self.counter = 0
+                else:
+                    self.get_to_desired_speed(0)
+                    self.counter += 1
                 return (self.current_speed, 0)
         else:
             return self.move_through_path()

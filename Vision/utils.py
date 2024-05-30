@@ -47,10 +47,10 @@ def is_within_range_distance(aspect_ratio, distance, area):
         is_within_range(aspect_ratio, [3.1, 7.8]) and
         is_within_range(area, [800, 5000])):
         is_in_range = True
-    elif (is_within_range(distance, [2, 3]) and
-        is_within_range(aspect_ratio, [3.7, 8]) and
-        is_within_range(area, [800, 2000])):
-        is_in_range = True
+    # elif (is_within_range(distance, [2, 3]) and
+    #     is_within_range(aspect_ratio, [3.7, 8]) and
+    #     is_within_range(area, [800, 2000])):
+    #     is_in_range = True
     return is_in_range
         
         

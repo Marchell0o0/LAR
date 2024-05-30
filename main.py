@@ -90,14 +90,14 @@ class TurtlebotApp:
         #     measurements_to_make = 2
         #     print("Making two measurements")
         if abs(self.next_move[1]) < 0.01 and self.next_move[0] < 0.2:
-            if self.path_execution.current_checkpoint_idx < 1:
+            if self.path_execution.current_checkpoint_idx < 8:
                 measurements_to_make = 5
                 time.sleep(0.3)
             elif self.next_move[0] < 0.01:
                 measurements_to_make = 3
                 time.sleep(0.3)
-            else:
-                measurements_to_make = 1
+            # else:
+                # measurements_to_make = 1
 
         if measurements_to_make > 0:
             print(f"Making {measurements_to_make} measurements")
@@ -238,9 +238,7 @@ def main():
         #                    ])
     else:
         env = Environment(Robot(0, 0, 0),
-                          [ Checkpoint(0, 0, 0)] +
-                            [Checkpoint(0, 0, angle) for angle in np.arange(0, 2 * np.pi + 0.01, np.pi / 4)]
-                          ,
+                          [Checkpoint(0, 0, angle) for angle in np.arange(0, 2 * np.pi + 0.01, np.pi / 4)],
                           [],
                           [])
 
