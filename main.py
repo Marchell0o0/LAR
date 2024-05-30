@@ -173,48 +173,47 @@ def main():
 
     # Example environment for simulation testing
     if not turtlebot:
-        # env = Environment(Robot(0, 0, 0),
-        #                   [
-        #                       # Checkpoint(0, 0, angle) for angle in np.arange(0, 5 * np.pi / 2, np.pi / 2)
-        #                   ],
-        #                   [],
-        #                   [
-        #                    Obstacle(1, 0.05, 0),
-        #                    Obstacle(1, -0.05, 1),
-        #                    Obstacle(0.9, 0.7, 2),
-        #                    Obstacle(1.45, 1.28, 0),
-        #                    Obstacle(1.50, 1.25, 1),
-        #                    Obstacle(0, 1.60, 2),
-        #                    Obstacle(0.05, 1.65, 2)
-        #                    ])
         env = Environment(Robot(0, 0, 0),
                           [
                               # Checkpoint(0, 0, angle) for angle in np.arange(0, 5 * np.pi / 2, np.pi / 2)
-                              Checkpoint(2, 0,  0),
-                              Checkpoint(0, 0, np.pi),
-                              Checkpoint(2, 0, 0),
-                              Checkpoint(0, 0, np.pi),
-                              Checkpoint(2, 0,  0),
-                              Checkpoint(0, 0, np.pi),
-                              Checkpoint(2, 0,  0),
-                              Checkpoint(0, 0, np.pi),
-                              Checkpoint(2, 0,  0),
-                              Checkpoint(0, 0, np.pi),
-                              Checkpoint(2, 0,  0),
-                              # Checkpoint(0, 0, np.pi),
-                              # Checkpoint(2, 0,  0),
-                              # Checkpoint(0, 0, np.pi),
                           ],
                           [],
                           [
                            Obstacle(1, 0.05, 0),
                            Obstacle(1, -0.05, 1),
-                           Obstacle(0.50, -0.35, 2),
-                           Obstacle(1.50, -0.35, 2),
-                           Obstacle(0.50, 0.35, 2),
-                           Obstacle(1.50, 0.35, 2),
-
+                           Obstacle(0.9, 0.7, 2),
+                           Obstacle(1.45, 1.28, 0),
+                           Obstacle(1.50, 1.25, 1),
+                           Obstacle(0, 1.60, 2),
+                           Obstacle(0.05, 1.65, 2)
                            ])
+        # env = Environment(Robot(0, 0, 0),
+        #                   [
+        #                       # Checkpoint(0, 0, angle) for angle in np.arange(0, 5 * np.pi / 2, np.pi / 2)
+        #                       Checkpoint(2, 0,  0),
+        #                       Checkpoint(0, 0, np.pi),
+        #                       Checkpoint(2, 0, 0),
+        #                       Checkpoint(0, 0, np.pi),
+        #                       Checkpoint(2, 0,  0),
+        #                       Checkpoint(0, 0, np.pi),
+        #                       Checkpoint(2, 0,  0),
+        #                       Checkpoint(0, 0, np.pi),
+        #                       # Checkpoint(2, 0,  0),
+        #                       # Checkpoint(0, 0, np.pi),
+        #                       # Checkpoint(2, 0,  0),
+        #                       # Checkpoint(0, 0, np.pi),
+        #                       # Checkpoint(2, 0,  0),
+        #                       # Checkpoint(0, 0, np.pi),
+        #                   ],
+        #                   [],
+        #                   [
+        #                    Obstacle(1, 0.05, 0),
+        #                    Obstacle(1, -0.05, 1),
+        #                    Obstacle(0.50, -0.35, 2),
+        #                    Obstacle(1.50, -0.35, 2),
+        #                    Obstacle(0.50, 0.35, 2),
+        #                    Obstacle(1.50, 0.35, 2),
+        #                    ])
     else:
         env = Environment(Robot(0, 0, 0),
                           [Checkpoint(0, 0, angle) for angle in np.arange(0, 5 * np.pi / 2, np.pi / 2)],

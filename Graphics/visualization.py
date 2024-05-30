@@ -5,7 +5,7 @@ import cv2
 
 
 class RobotVisualization:
-    def __init__(self, screen_size, base_size, env, path_execution, kalman_filter, window_percentage=0.8, margin=0.5):
+    def __init__(self, screen_size, base_size, env, path_execution, kalman_filter, window_percentage=1, margin=0.2):
         self.env = env
         self.path_execution = path_execution
         self.kalman_filter = kalman_filter
@@ -47,7 +47,8 @@ class RobotVisualization:
         raw_str = pygame.image.tostring(self.screen, 'RGB')
         image = np.frombuffer(raw_str, dtype=np.uint8).reshape(self.base_size[1], self.base_size[0], 3)
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-        if image.shape != self.screen_size:
+        if image.shape[:2] != self.screen_size:
+            print("Resizing image")
             image = cv2.resize(image, None, fx=self.scale_width,
                             fy=self.scale_height, interpolation=cv2.INTER_AREA)
         return image
@@ -161,7 +162,7 @@ class RobotVisualization:
         # Create a new surface to draw the unrotated ellipse
         ellipse_surface = pygame.Surface((int(width_pixels * 2), int(height_pixels * 2)), pygame.SRCALPHA)
 
-        # pygame.draw.ellipse(ellipse_surface, color, (0, 0, width_pixels * 2, height_pixels * 2), 1)
+        pygame.draw.ellipse(ellipse_surface, color, (0, 0, width_pixels * 2, height_pixels * 2), 1)
 
         # Rotate the surface
         rotated_surface = pygame.transform.rotate(ellipse_surface,
@@ -203,14 +204,42 @@ class RobotVisualization:
             int(robot_center[1] - fov_radius_pixels * np.sin(end_angle_rad))
         )
 
-        # # Draw the FOV arc
-        # rect = pygame.Rect(robot_center[0] - fov_radius_pixels, robot_center[1] - fov_radius_pixels,
-        #                    2 * fov_radius_pixels, 2 * fov_radius_pixels)
-        # pygame.draw.arc(self.screen, color, rect, start_angle_rad, end_angle_rad, 1)
+        # Draw the FOV arc
+        rect = pygame.Rect(robot_center[0] - fov_radius_pixels, robot_center[1] - fov_radius_pixels,
+                           2 * fov_radius_pixels, 2 * fov_radius_pixels)
+        pygame.draw.arc(self.screen, color, rect, start_angle_rad, end_angle_rad, 1)
+
+        # Optional: Draw lines to denote the edges of the FOV
+        pygame.draw.line(self.screen, color, robot_center, start_point, 1)
+        pygame.draw.line(self.screen, color, robot_center, end_point, 1)
+
+        # # Draw lookahead distance function
+        # d_max = self.path_execution.max_lookahead_distance
+        # d_min = self.path_execution.min_lookahead_distance
+        # p = 1 / 10
         #
-        # # Optional: Draw lines to denote the edges of the FOV
-        # pygame.draw.line(self.screen, color, robot_center, start_point, 1)
-        # pygame.draw.line(self.screen, color, robot_center, end_point, 1)
+        # phi = np.linspace(-np.pi, np.pi, 200)
+        # d = np.piecewise(phi,
+        #                  [np.abs(phi) < 0.02,
+        #                   (np.abs(phi) >= 0.02) & (np.abs(phi) <= np.pi / 2),
+        #                   np.abs(phi) > np.pi / 2],
+        #                  [d_max,
+        #                   lambda phi: (d_min - d_max) / (np.pi / 2) ** p * (np.abs(phi) - 0.02) ** p + d_max,
+        #                   d_min])
+        #
+        # # Adjust phi by the robot's orientation angle to rotate the function
+        # phi += robot.a
+        #
+        # # Convert polar to Cartesian coordinates
+        # x = d * np.cos(phi)
+        # y = d * np.sin(phi)
+        #
+        # # Use get_coordinates_in_pixels to accurately place the points
+        # lookahead_points = [self.get_coordinates_in_pixels(robot.x + x[i], robot.y + y[i]) for i in range(len(x))]
+        #
+        # # Draw the lookahead distance function
+        # for i in range(len(lookahead_points) - 1):
+        #     pygame.draw.line(self.screen, (0, 0, 255), lookahead_points[i], lookahead_points[i + 1], 1)
 
     def draw_obstacle(self, obstacle, index, hidden):
         color = [255, 255, 255]
@@ -299,8 +328,8 @@ class RobotVisualization:
         # Find the largest range to ensure a square aspect ratio
         range_x = max_x - min_x
         range_y = max_y - min_y
-        new_range = max(range_x, range_y) + self.margin
-        new_range = max(2, new_range)
+        new_range = max(range_x, range_y) + 2 * self.margin
+        # new_range = max(2, new_range)
 
         # Calculate new min and max for both x and y to be centered
         new_center_x = (max_x + min_x) / 2

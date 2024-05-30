@@ -9,8 +9,8 @@ class Robot:
     def __init__(self, x, y, a, ):
         self.radius = 0.177  # m
 
-        self.max_detection_range = 2  # m
-        self.fov_angle = np.deg2rad(180)
+        self.max_detection_range = 1.5  # m
+        self.fov_angle = np.deg2rad(70)
 
         # self.linear_acceleration = 0.4  # m/s^2
         # self.max_linear_speed = 0.4  # m/s
@@ -18,14 +18,14 @@ class Robot:
         # self.min_angular_speed = np.pi / 10
         # self.min_linear_speed = 0.03
 
-        self.linear_acceleration = 1  # m/s^2
-        self.max_linear_speed = 1  # m/s
+        self.linear_acceleration = 0.5  # m/s^2
+        self.max_linear_speed = 0.5  # m/s
         self.max_angular_speed = np.pi   # rad/s
         self.min_angular_speed = np.pi / 6
         self.min_linear_speed = 0.03
 
-        self.distance_allowance = 0.03
-        self.path_update_distance = 0.03
+        self.distance_allowance = 0.04
+        self.path_update_distance = 0.02
         self.angle_allowance = np.deg2rad(1)
         # self.obstacle_clearance = 0.045  # m
         self.obstacle_clearance = 0.06  # m

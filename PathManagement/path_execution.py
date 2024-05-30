@@ -14,7 +14,7 @@ class PathExecution:
         self.current_next_node = None
         self.current_checkpoint_idx = 0
 
-        self.max_lookahead_distance = 0.8
+        self.max_lookahead_distance = 0.4
         self.min_lookahead_distance = 0.025
         self.current_lookahead_distance = self.max_lookahead_distance
 
@@ -57,7 +57,7 @@ class PathExecution:
                 self.distance_to_path = dist
         
         # Define coefficients for the interpolation
-        interpolation_power = 1 / 20
+        interpolation_power = 1 / 10
         a = ((self.min_lookahead_distance - self.max_lookahead_distance)
              / (np.pi / 2) ** interpolation_power)
         d = self.max_lookahead_distance
@@ -75,7 +75,7 @@ class PathExecution:
             angle_difference = np.arctan2(dy, dx) - self.env.robot.a
             angle_difference = np.arctan2(np.sin(angle_difference), np.cos(angle_difference))
 
-            offset = 0.01
+            offset = 0.02
             if abs(angle_difference) < offset:
                 probable_lookahead = self.max_lookahead_distance
             elif abs(angle_difference) > np.pi / 2 or min_dist > 0.1:
@@ -159,22 +159,28 @@ class PathExecution:
         elif self.current_lookahead_distance < self.min_lookahead_distance:
             linear_speed = self.env.robot.min_linear_speed
         else:
-            power = 2
-            a = (self.env.robot.max_linear_speed - self.env.robot.min_linear_speed)/(self.max_lookahead_distance-self.min_lookahead_distance)
-            linear_speed = a*(self.current_lookahead_distance - self.min_lookahead_distance)**(1/power) + self.min_lookahead_distance
-            # linear_speed = max(self.env.robot.min_linear_speed, linear_speed)
+            power = 3
+            a = (self.env.robot.min_linear_speed - self.env.robot.max_linear_speed) / ((self.min_lookahead_distance - self.max_lookahead_distance) ** power)
+            linear_speed = a * (self.current_lookahead_distance - self.max_lookahead_distance) ** power + self.env.robot.max_linear_speed
+            linear_speed = max(self.env.robot.min_linear_speed, linear_speed)
 
         self.get_to_desired_speed(linear_speed)
 
         if abs(between_angle) < np.pi / 2:
             angular_speed = self.env.robot.max_angular_speed * lookahead_curvature
             angular_speed = min(angular_speed, self.env.robot.max_angular_speed)
-            angular_speed = direction * angular_speed
         else:
             angular_speed = self.env.robot.max_angular_speed
 
+        angular_speed = direction * angular_speed
         return self.current_speed, angular_speed
 
+    def make_exploration_checkpoint(self, exploration_distance):
+        new_x = self.env.robot.x + np.cos(self.env.robot.a) * exploration_distance
+        new_y = self.env.robot.y + np.sin(self.env.robot.a) * exploration_distance
+        new_a = float(self.env.robot.a)
+        new_checkpoint = Checkpoint(new_x, new_y, new_a)
+        return new_checkpoint
     def get_current_move(self):
         if not self.path:
             # Still have checkpoints to go through
@@ -192,13 +198,24 @@ class PathExecution:
             else:
                 if not self.env.found_finish and self.counter > 0:
                     print("Adding a new checkpoint for exploration")
-                    exploration_distance = 0.6
-                    new_x = self.env.robot.x + np.cos(self.env.robot.a) * exploration_distance
-                    new_y = self.env.robot.y + np.sin(self.env.robot.a) * exploration_distance
-                    new_a = float(self.env.robot.a)
-                    new_checkpoint = Checkpoint(new_x, new_y, new_a)
-                    turn_right = Checkpoint(new_x, new_y, new_a - self.env.look_around_angle)
-                    turn_left = Checkpoint(new_x, new_y, new_a + self.env.look_around_angle)
+                    exploration_distance = 0.3
+                    while True:
+                        new_checkpoint = self.make_exploration_checkpoint(exploration_distance)
+                        allowed = True
+                        for obstacle in self.env.obstacles:
+                            if distance(obstacle, new_checkpoint) <= self.env.robot.radius + self.env.robot.obstacle_clearance + obstacle.radius:
+                                allowed = False
+                                break
+
+                        if allowed:
+                            break
+
+                        exploration_distance += 0.3
+
+                    turn_right = Checkpoint(new_checkpoint.x, new_checkpoint.y,
+                                            new_checkpoint.a - self.env.look_around_angle)
+                    turn_left = Checkpoint(new_checkpoint.x, new_checkpoint.y,
+                                           new_checkpoint.a + self.env.look_around_angle)
                     self.env.checkpoints.append(new_checkpoint)
                     self.env.checkpoints.append(turn_right)
                     self.env.checkpoints.append(turn_left)
