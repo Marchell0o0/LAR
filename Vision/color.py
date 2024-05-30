@@ -126,7 +126,7 @@ class ColorSettings:
             len(self.measured_values[color_name]["hue_deviations"]) > max_elem and
             len(self.measured_values[color_name]["saturation_thresholds"]) > max_elem):
             
-            num_elem = max_elem / 2
+            num_elem = max_elem // 2
             
             del self.measured_values[color_name]["hue_values"][:num_elem]
             del self.measured_values[color_name]["hue_deviations"][:num_elem]
@@ -177,13 +177,13 @@ class ColorSettings:
             color_adapt_queue.get_queue_length(color_name, "dev") == max_length and
             color_adapt_queue.get_queue_length(color_name, "sat") == max_length):
             # print(f"COLOR {color_name} was REASSIGNED. NOW CAN BE DETECTED")
-            print(f"---{color_name}---")
-            print(f"HUE QUEUE for {color_name}: {color_adapt_queue.queues[color_name]['hue']}")
-            print(f"DEV QUEUE for {color_name}: {color_adapt_queue.queues[color_name]['dev']}")
-            print(f"SAT QUEUE for {color_name}: {color_adapt_queue.queues[color_name]['sat']}")
-            print(f"----------")
+            # print(f"---{color_name}---")
+            # print(f"HUE QUEUE for {color_name}: {color_adapt_queue.queues[color_name]['hue']}")
+            # print(f"DEV QUEUE for {color_name}: {color_adapt_queue.queues[color_name]['dev']}")
+            # print(f"SAT QUEUE for {color_name}: {color_adapt_queue.queues[color_name]['sat']}")
+            # print(f"----------")
             self.calib_values[color_name]["reassigned"] = True
-            print(color_adapt_queue)
+            # print(color_adapt_queue)
         return
 
 class ColorQueue:

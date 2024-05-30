@@ -10,7 +10,7 @@ class KalmanFilter:
         self.mu = np.array([[self.env.robot.x], [self.env.robot.y], [self.env.robot.a]], dtype=np.float64)
 
         self.R = np.diag([0.00001, 0.00001, 0.00001])  # sigma x, y, a
-        self.Q_obstacles = np.diag([0.05, np.deg2rad(0.5), 0.00001])  # sigma r, phi, color
+        self.Q_obstacles = np.diag([0.05, np.deg2rad(1), 0.00001])  # sigma r, phi, color
 
         # acceptable mahalanobis distance
         self.alpha = 4
