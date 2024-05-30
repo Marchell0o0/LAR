@@ -126,7 +126,7 @@ class ColorSettings:
             len(self.measured_values[color_name]["hue_deviations"]) > max_elem and
             len(self.measured_values[color_name]["saturation_thresholds"]) > max_elem):
             
-            num_elem = max_elem / 2
+            num_elem = max_elem // 2
             
             del self.measured_values[color_name]["hue_values"][:num_elem]
             del self.measured_values[color_name]["hue_deviations"][:num_elem]
