@@ -119,6 +119,7 @@ class TurtlebotApp:
 
             if self.camera_view:
                 cv2.imshow('RGB Camera', image_rectg)
+                # cv2.imshow('Combined mask', masked_rectgs)
             obstacle_measurements += detected_rectgs
 
         current_odometry = self.turtle.get_odometry()

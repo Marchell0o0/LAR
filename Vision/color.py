@@ -15,7 +15,7 @@ class ColorSettings:
         blue_range=[80, 130],
         blue_deviation=50,
         green_range=[50, 65],
-        green_deviation=50,
+        green_deviation=30,
         red_range=[0, 4],
         red_deviation=50,
         saturation_range=[20, 235] 
@@ -118,6 +118,7 @@ class ColorSettings:
                 
             if not self.calib_values[color_name]["reassigned"]:
                 self.reassign_new_color(color_adapt_queue, color_name)
+        # print(color_adapt_queue)
         return
 
     def prune_measured_values(self, color_name, max_elem=100):
