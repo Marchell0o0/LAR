@@ -15,7 +15,7 @@ class ColorSettings:
         blue_range=[80, 130],
         blue_deviation=50,
         green_range=[50, 65],
-        green_deviation=50,
+        green_deviation=30,
         red_range=[0, 4],
         red_deviation=50,
         saturation_range=[20, 235] 
@@ -118,6 +118,7 @@ class ColorSettings:
                 
             if not self.calib_values[color_name]["reassigned"]:
                 self.reassign_new_color(color_adapt_queue, color_name)
+        # print(color_adapt_queue)
         return
 
     def prune_measured_values(self, color_name, max_elem=100):
@@ -126,7 +127,7 @@ class ColorSettings:
             len(self.measured_values[color_name]["hue_deviations"]) > max_elem and
             len(self.measured_values[color_name]["saturation_thresholds"]) > max_elem):
             
-            num_elem = max_elem / 2
+            num_elem = max_elem // 2
             
             del self.measured_values[color_name]["hue_values"][:num_elem]
             del self.measured_values[color_name]["hue_deviations"][:num_elem]
@@ -177,13 +178,13 @@ class ColorSettings:
             color_adapt_queue.get_queue_length(color_name, "dev") == max_length and
             color_adapt_queue.get_queue_length(color_name, "sat") == max_length):
             # print(f"COLOR {color_name} was REASSIGNED. NOW CAN BE DETECTED")
-            print(f"---{color_name}---")
-            print(f"HUE QUEUE for {color_name}: {color_adapt_queue.queues[color_name]['hue']}")
-            print(f"DEV QUEUE for {color_name}: {color_adapt_queue.queues[color_name]['dev']}")
-            print(f"SAT QUEUE for {color_name}: {color_adapt_queue.queues[color_name]['sat']}")
-            print(f"----------")
+            # print(f"---{color_name}---")
+            # print(f"HUE QUEUE for {color_name}: {color_adapt_queue.queues[color_name]['hue']}")
+            # print(f"DEV QUEUE for {color_name}: {color_adapt_queue.queues[color_name]['dev']}")
+            # print(f"SAT QUEUE for {color_name}: {color_adapt_queue.queues[color_name]['sat']}")
+            # print(f"----------")
             self.calib_values[color_name]["reassigned"] = True
-            print(color_adapt_queue)
+            # print(color_adapt_queue)
         return
 
 class ColorQueue:

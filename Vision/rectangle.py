@@ -213,6 +213,7 @@ class RectangleProcessor:
     def process_image(self):
         colors = ["blue", "green", "red"]
         result_masked = {}
+        green_mask = None
         
         if self.image is not None and self.pc_image is not None:
             
@@ -226,7 +227,12 @@ class RectangleProcessor:
             
                 masked_labels = self.detect_labels(result_masked[color_name])
                 masked_rectangles, image_rectangles = self.detect_rectangles(masked_labels, original_image, color_name)
-                    
+                if color_name == "green":
+                    green_mask = result_masked[color_name]
+            
+            if green_mask is not None:
+                masked_labels = green_mask
+                  
             self.color_settings.update_image_colors(
                 self.rectangles,
                 self.image,

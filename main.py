@@ -19,9 +19,10 @@ os.environ['SDL_VIDEODRIVER'] = 'dummy'
 
 
 class TurtlebotApp:
-    def __init__(self, env, visualization=False, turtlebot=False):
+    def __init__(self, env, visualization=False, turtlebot=False, camera_view=False):
         self.visualization = visualization
         self.turtlebot = turtlebot
+        self.camera_view = camera_view
 
         self.env = env
         self.path_creation = PathCreation(self.env)
@@ -49,6 +50,7 @@ class TurtlebotApp:
         if self.turtlebot:
             self.initialize_turtlebot()
 
+        self.next_move = (0, 0)
         self.previous_odometry = (0, 0, 0)
 
     def initialize_turtlebot(self):
@@ -80,30 +82,44 @@ class TurtlebotApp:
 
         self.turtle.reset_odometry()
 
-    def turtle_routine(self):
-        next_move = self.path_execution.get_current_move()
-        self.turtle.cmd_velocity(angular=next_move[1], linear=next_move[0])
-
-        self.rate.sleep()
-
+    def turtle_routine(self, counter):
         obstacle_measurements = []
         measurements_to_make = 0
 
-        if next_move[0] < 0.04 and abs(next_move[1]) < 0.01:
-            measurements_to_make = 2
-            print("Making two measurements")
-        elif next_move[0] < 0.1 and abs(next_move[1]) < 0.01:
-            measurements_to_make = 1
-            print("Making one measurement")
+        # if next_move[0] < 0.04 and abs(next_move[1]) < 0.01:
+        #     measurements_to_make = 2
+        #     print("Making two measurements")
+        if abs(self.next_move[1]) < 0.01 and self.next_move[0] < 0.2:
+            if self.path_execution.current_checkpoint_idx < 8:
+                measurements_to_make = 5
+                time.sleep(0.3)
+            elif self.next_move[0] < 0.01:
+                measurements_to_make = 3
+                time.sleep(0.3)
+            # else:
+                # measurements_to_make = 1
+
+        if measurements_to_make > 0:
+            print(f"Making {measurements_to_make} measurements")
+        # if next_move[0] < 0.4 and abs(next_move[1]) < 0.01:
+        #     if self.path_execution.current_checkpoint_idx <= 1:
+        #         print("going through first checkpoints, making 5 measurements")
+        #         time.sleep(0.3)
+        #     else:
+        #         measurements_to_make = 1
+        #         print("Making one measurement")
 
         for _ in range(measurements_to_make):
             image = self.turtle.get_rgb_image()
             pc_image = self.turtle.get_point_cloud()
-
             rectg_processor = RectangleProcessor(image, pc_image, self.color_settings, self.color_adapt_queue)
             detected_rectgs, masked_rectgs, image_rectg, _ = rectg_processor.process_image()
             if detected_rectgs is None:
                 continue
+
+            if self.camera_view:
+                cv2.imshow('RGB Camera', image_rectg)
+                # cv2.imshow('Combined mask', masked_rectgs)
             obstacle_measurements += detected_rectgs
 
         current_odometry = self.turtle.get_odometry()
@@ -116,6 +132,12 @@ class TurtlebotApp:
 
         self.env.update_checkpoints(self.path_execution.current_checkpoint_idx)
         self.path_execution.update_path()
+
+        self.next_move = self.path_execution.get_current_move()
+        self.turtle.cmd_velocity(angular=self.next_move[1], linear=self.next_move[0])
+
+        self.rate.sleep()
+
 
     def simulation_routine(self, dt, counter):
         next_move = self.path_execution.get_current_move()
@@ -140,7 +162,7 @@ class TurtlebotApp:
                 running = False
 
             if self.visualization:
-                if (counter % 5 == 0 and self.turtlebot) or not self.turtlebot:
+                if (counter % 2 == 0 and self.turtlebot) or not self.turtlebot:
                     self.vis.draw_everything(self.turtlebot)
                     self.vis.show_cv2(counter)
                     self.vis.clock.tick(120)
@@ -148,7 +170,7 @@ class TurtlebotApp:
             if self.turtlebot:
                 if self.turtle.is_shutting_down():
                     running = False
-                self.turtle_routine()
+                self.turtle_routine(counter)
             else:
                 if previous_time == 0:
                     previous_time = time.time()
@@ -170,6 +192,7 @@ def main():
     # input("Press Enter to continue...")
     visualization = "-vis" in sys.argv
     turtlebot = "-turtlebot" in sys.argv
+    camera_view = "-camera" in sys.argv
 
     # Example environment for simulation testing
     if not turtlebot:
@@ -216,11 +239,11 @@ def main():
         #                    ])
     else:
         env = Environment(Robot(0, 0, 0),
-                          [Checkpoint(0, 0, angle) for angle in np.arange(0, 5 * np.pi / 2, np.pi / 2)],
+                          [Checkpoint(0, 0, angle) for angle in np.arange(0, 2 * np.pi + 0.01, np.pi / 4)],
                           [],
                           [])
 
-    app = TurtlebotApp(env, visualization=visualization, turtlebot=turtlebot)
+    app = TurtlebotApp(env, visualization=visualization, turtlebot=turtlebot, camera_view=camera_view)
     app.run()
 
 

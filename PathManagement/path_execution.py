@@ -35,7 +35,7 @@ class PathExecution:
         for node in self.path:
             for obstacle in self.env.obstacles:
                 allowed_radius = obstacle.radius + self.env.robot.radius + self.env.robot.obstacle_clearance
-                if distance(node, obstacle) < allowed_radius - 0.05:  # ease up to 5 cm
+                if distance(node, obstacle) < allowed_radius - 0.06:  # ease up to 5 cm
                     self.path = []
                     return
             distance_to_checkpoint = distance(node, self.env.checkpoints[self.current_checkpoint_idx])
@@ -57,7 +57,7 @@ class PathExecution:
                 self.distance_to_path = dist
         
         # Define coefficients for the interpolation
-        interpolation_power = 1 / 10
+        interpolation_power = 1 / 5
         a = ((self.min_lookahead_distance - self.max_lookahead_distance)
              / (np.pi / 2) ** interpolation_power)
         d = self.max_lookahead_distance
@@ -75,7 +75,7 @@ class PathExecution:
             angle_difference = np.arctan2(dy, dx) - self.env.robot.a
             angle_difference = np.arctan2(np.sin(angle_difference), np.cos(angle_difference))
 
-            offset = 0.02
+            offset = 0.01
             if abs(angle_difference) < offset:
                 probable_lookahead = self.max_lookahead_distance
             elif abs(angle_difference) > np.pi / 2 or min_dist > 0.1:
@@ -159,7 +159,7 @@ class PathExecution:
         elif self.current_lookahead_distance < self.min_lookahead_distance:
             linear_speed = self.env.robot.min_linear_speed
         else:
-            power = 3
+            power = 2
             a = (self.env.robot.min_linear_speed - self.env.robot.max_linear_speed) / ((self.min_lookahead_distance - self.max_lookahead_distance) ** power)
             linear_speed = a * (self.current_lookahead_distance - self.max_lookahead_distance) ** power + self.env.robot.max_linear_speed
             linear_speed = max(self.env.robot.min_linear_speed, linear_speed)
@@ -169,10 +169,10 @@ class PathExecution:
         if abs(between_angle) < np.pi / 2:
             angular_speed = self.env.robot.max_angular_speed * lookahead_curvature
             angular_speed = min(angular_speed, self.env.robot.max_angular_speed)
+            angular_speed = direction * angular_speed
         else:
             angular_speed = self.env.robot.max_angular_speed
 
-        angular_speed = direction * angular_speed
         return self.current_speed, angular_speed
 
     def make_exploration_checkpoint(self, exploration_distance):

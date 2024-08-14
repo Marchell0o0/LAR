@@ -21,12 +21,14 @@ class PathCreation:
 
         path[0] = Node(robot.x, robot.y)
         path[-1] = goal_checkpoint
-
-        path = self.simplify_path(path, 1, 'start')
-        path = self.inject_nodes(path, 0.05, False)
-        path = self.simplify_path(path, 1, 'end')
-        path = self.inject_nodes(path, 0.02, True)
-        path = self.bezier_curve_interpolation(path, 0.02)
+        if len(path) == 2:
+            path = self.inject_nodes(path, 0.02, False)
+        else:
+            path = self.simplify_path(path, 1, 'start')
+            path = self.inject_nodes(path, 0.05, False)
+            path = self.simplify_path(path, 1, 'end')
+            path = self.inject_nodes(path, 0.02, False)
+            path = self.bezier_curve_interpolation(path, 0.02)
         print("---------------------------------------------")
         return path
 
@@ -117,10 +119,10 @@ class PathCreation:
 
             # Add the original end_node to the path
             new_path.append(end_node)
-        if add_more and len(new_path) >= 2:
-            projection_angle = np.arctan2(new_path[-1].y - new_path[-2].y, new_path[-1].x - new_path[-2].x)
-            new_path.append(Node(new_path[-1].x + frequency * np.cos(projection_angle),
-                                new_path[-1].y + frequency * np.sin(projection_angle)))
+        # if add_more and len(new_path) >= 2:
+        #     projection_angle = np.arctan2(new_path[-1].y - new_path[-2].y, new_path[-1].x - new_path[-2].x)
+        #     new_path.append(Node(new_path[-1].x + frequency * np.cos(projection_angle),
+        #                         new_path[-1].y + frequency * np.sin(projection_angle)))
 
         return new_path
 
@@ -157,6 +159,8 @@ class PathCreation:
     def straight_path_exists(self, start, goal) -> bool:
         dx = goal.x - start.x
         dy = goal.y - start.y
+        if dx == 0 and dy == 0:
+            return True
         for obstacle in self.env.obstacles:
             # Calculate relative positions to the obstacle
             ox = obstacle.x - start.x
